@@ -1,17 +1,3 @@
-## My Project
+# ReproMark
 
-TODO: Fill this README out!
-
-Be sure to:
-
-* Change the title in this README
-* Edit your repository description on GitHub
-
-## Security
-
-See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
-
-## License
-
-This project is licensed under the Apache-2.0 License.
-
+A light framework for, and aloose collection of benchmark repro packages, to unify testing methodologies and aid with community discussions around detected regressions.
