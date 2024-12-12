@@ -3,11 +3,11 @@
 [ "$1" = "--help" ] && {
     echo "Usage: $0 [--install] [--version=<kernel_tag>] [--path=<linux_dir>] [--repo=<git_repo>] [<config_option>=<value> [...]]"
     echo "Build the Linux kernel (optionally download from repo and activate it after building)"
-    echo "E.g.: kernel_build.sh --install --version=v6.8 CONFIG_SCHED_DEBUG=y CONFIG_PROC_SYSCTL=y CONFIG_SYSCTL=y 2>&1 | tee build.log"
+    echo "E.g.: $0 --install --version=v6.12 CONFIG_SCHED_DEBUG=y CONFIG_PROC_SYSCTL=y CONFIG_SYSCTL=y 2>&1 | tee build.log"
     exit 0
 }
 : ${install_kernel:=false} # default: just build the kernel, don't install it
-: ${use_suse_repo:=false}  # default: use mainline Linux repo, not SUSE
+: ${use_suse_repo:=false}  # default: use mainline Linux repo, not SUSE (only for SUSE hosts)
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -134,6 +134,3 @@ $install_kernel && {
     fi
     echo "Kernel: $(ls -l $kernel)"
 }
-
-# SUSE build log: https://build.opensuse.org/package/live_build_log/Kernel:vanilla/kernel-source-vanilla/standard/x86_64
-# prebuilt rpm: https://download.opensuse.org/repositories/Kernel:/vanilla/
