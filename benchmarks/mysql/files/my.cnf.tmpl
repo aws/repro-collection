@@ -24,7 +24,7 @@ pid-file	= /var/run/mysqld/mysqld.pid
 socket		= /var/run/mysqld/mysqld.sock
 port		= {{ MYSQL_PORT }}
 basedir		= /usr/
-datadir		= {{ MYSQL_MOUNTPOINT }}/data
+datadir		= {{ MYSQL_DB_MOUNTPOINT }}/data
 tmpdir		= /tmp
 lc-messages-dir	= /usr/share/mysql
 skip-external-locking

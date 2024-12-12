@@ -2,24 +2,21 @@
 # Repro: mysql + hammerdb
 
 # test configuration
-[ -f ./config.sh ] && . ./config.sh
-: ${PARAM_RESULTS_FILE:=~/results.json} # where the repro writes the parsed results
-: ${PARAM_VUSERS_PER_CORE:=4} # number of "virtual users" per core
-: ${PARAM_WH:=24} # total number of "warehouses"; a good ballpark is (SUT_RAM_GB * 25 / 32)
-: ${PARAM_RAMPUP_MIN:=5} # ramp up time, in minutes
-: ${PARAM_DURATION_MIN:=20} # test duration, in minutes
-: ${PARAM_RAMPDOWN_MIN:=5} # ramp down time, in minutes
-: ${DB_RAMDISK_SIZE:=16G}
-: ${DB_RAMDISK_MOUNTPOINT:=/tmp/ramdisk}
-: ${MYSQL_REPO:=https://github.com/mysql/mysql-server.git}
-: ${MYSQL_VERSION:=05e4357f78790766fea8342ecf072645b8310f94}
+: ${HAMMERDB_PARAM_VUSERS_PER_CORE:=4} # number of "virtual users" per core
+: ${HAMMERDB_PARAM_WH:=24} # total number of "warehouses"; a good ballpark is (SUT_RAM_GB * 25 / 32)
+: ${HAMMERDB_PARAM_RAMPUP_MIN:=5} # ramp up time, in minutes
+: ${HAMMERDB_PARAM_DURATION_MIN:=20} # test duration, in minutes
+: ${HAMMERDB_PARAM_RAMPDOWN_MIN:=5} # ramp down time, in minutes
 : ${HAMMERDB_REPO:=https://github.com/TPC-Council/HammerDB.git}
 : ${HAMMERDB_VERSION:=4.4} # SHA: 64db67981d945c92919c6b3e1b192498077b658d
 : ${HAMMERDB_PATH:=~/HammerDB}
-: ${MYSQL_MOUNTPOINT:=/mnt/mysql}
+
+: ${MYSQL_DB_MOUNTPOINT:=/mnt/mysql}
+: ${MYSQL_DB_FILESYSTEM:=ext4}
 : ${MYSQL_MALLOC:=jemalloc} # jemalloc, tcmalloc_minimal, etc
-: ${MYSQLD_PATH:=/usr/sbin/mysqld}
-: ${MYSQLD_RAMDISK_SIZE:=16G}
+: ${MYSQL_BINARY_PATH:=/usr/sbin/mysqld}
+: ${MYSQL_RAMDISK_SIZE:=16G}
+: ${MYSQL_RAMDISK_MOUNTPOINT:=/tmp/ramdisk}
 : ${MYSQL_USERNAME:=mysql_user}
 : ${MYSQL_PASSWORD:=mysql}
 : ${MYSQL_PORT:=3306}
@@ -42,21 +39,21 @@ function mysql:install:sut() {
         sudo service mysql stop
 
         #sudo rm -f /etc/mysql/my.cnf /lib/systemd/system/mysql.service
-        repro:template <${REPRO_ROOT}/files/my.cnf.tmpl MYSQL_MOUNTPOINT MYSQL_PORT | sudo bash -c 'cat >/etc/mysql/my.cnf'
-        repro:template <${REPRO_ROOT}/files/mysqld.service.tmpl MYSQL_MALLOC MYSQLD_PATH SCHED_POLICY SCHED_PRIORITY | sudo bash -c 'cat >/lib/systemd/system/mysql.service'
+        repro:template <${REPRO_ROOT}/files/my.cnf.tmpl MYSQL_DB_MOUNTPOINT MYSQL_PORT | sudo bash -c 'cat >/etc/mysql/my.cnf'
+        repro:template <${REPRO_ROOT}/files/mysqld.service.tmpl MYSQL_MALLOC MYSQL_BINARY_PATH BENCHMARK_SCHED_POLICY BENCHMARK_SCHED_PRIORITY | sudo bash -c 'cat >/lib/systemd/system/mysql.service'
         umask 022
-        sudo rm -rf ${MYSQL_MOUNTPOINT}/{data,tmp}
-        sudo mkdir -p ${MYSQL_MOUNTPOINT}/tmp
+        sudo rm -rf ${MYSQL_DB_MOUNTPOINT}/{data,tmp}
+        sudo mkdir -p ${MYSQL_DB_MOUNTPOINT}/tmp
 
         [ -d /var/lib/mysql.orig ] || sudo mv /var/lib/mysql /var/lib/mysql.orig
-        sudo mkdir -p ${DB_RAMDISK_MOUNTPOINT}
-        mountpoint -q ${DB_RAMDISK_MOUNTPOINT} || sudo mount -t tmpfs -o size=${MYSQLD_RAMDISK_SIZE} myramdisk ${DB_RAMDISK_MOUNTPOINT}
-        sudo rm -rf ${DB_RAMDISK_MOUNTPOINT}/mysql /var/lib/mysql
-        sudo cp -R /var/lib/mysql.orig ${DB_RAMDISK_MOUNTPOINT}/mysql
-        sudo ln -s ${DB_RAMDISK_MOUNTPOINT}/mysql /var/lib/mysql
+        sudo mkdir -p ${MYSQL_RAMDISK_MOUNTPOINT}
+        mountpoint -q ${MYSQL_RAMDISK_MOUNTPOINT} || sudo mount -t tmpfs -o size=${MYSQL_RAMDISK_SIZE} myramdisk ${MYSQL_RAMDISK_MOUNTPOINT}
+        sudo rm -rf ${MYSQL_RAMDISK_MOUNTPOINT}/mysql /var/lib/mysql
+        sudo cp -R /var/lib/mysql.orig ${MYSQL_RAMDISK_MOUNTPOINT}/mysql
+        sudo ln -s ${MYSQL_RAMDISK_MOUNTPOINT}/mysql /var/lib/mysql
 
-        sudo chown -R mysql:mysql ${MYSQL_MOUNTPOINT} ${DB_RAMDISK_MOUNTPOINT} /var/lib/mysql
-        sudo chmod -R 755 ${MYSQL_MOUNTPOINT} ${DB_RAMDISK_MOUNTPOINT}/mysql
+        sudo chown -R mysql:mysql ${MYSQL_DB_MOUNTPOINT} ${MYSQL_RAMDISK_MOUNTPOINT} /var/lib/mysql
+        sudo chmod -R 755 ${MYSQL_DB_MOUNTPOINT} ${MYSQL_RAMDISK_MOUNTPOINT}/mysql
 
         [ -d /etc/apparmor.d ] && {
             sudo apparmor_parser -R /etc/apparmor.d/usr.sbin.mysqld
@@ -69,7 +66,7 @@ function mysql:install:sut() {
         sudo sysctl fs.aio-max-nr=1048576
         sudo sysctl vm.max_map_count=2147483647
 
-        sudo ${MYSQLD_PATH} --initialize-insecure
+        sudo ${MYSQL_BINARY_PATH} --initialize-insecure
         sudo service mysql start
 
         # Set mysql user and password to match tcl files
@@ -98,9 +95,9 @@ EOT
 
 function mysql:configure:loadgen() {
     repro:debug Loadgen configure
-    PARAM_VUSERS=$((PARAM_VUSERS_PER_CORE * $(nproc)))
-    PARAM_DURATION_TOTAL_SEC=$((PARAM_RAMPUP_MIN * 60 + PARAM_DURATION_MIN * 60 + 120))
-    PARAM_RAMPDOWN_MSEC=$((PARAM_RAMPDOWN_MIN * 60 * 1000))
+    HAMMERDB_PARAM_VUSERS=$((HAMMERDB_PARAM_VUSERS_PER_CORE * $(nproc)))
+    HAMMERDB_PARAM_DURATION_TOTAL_SEC=$((HAMMERDB_PARAM_RAMPUP_MIN * 60 + HAMMERDB_PARAM_DURATION_MIN * 60 + 120))
+    HAMMERDB_PARAM_RAMPDOWN_MSEC=$((HAMMERDB_PARAM_RAMPDOWN_MIN * 60 * 1000))
     repro:template <${REPRO_ROOT}/files/mysql_tpcc_run.tcl >${HAMMERDB_PATH}/mysql_tpcc_run.tcl
 }
 
@@ -123,6 +120,8 @@ function mysql:run:loadgen() {
 
 function mysql:results:loadgen() {
     repro:debug mysql:results "$@"
+
+    [ "$BENCHMARK_RESULTS_FORMAT" != json ] && repro:error "Unsupported results format: $BENCHMARK_RESULTS_FORMAT" && return 1
 
     # format: Vuser 1:TEST RESULT : System achieved 123456 NOPM from 456789 MySQL TPM
     local -a nopm tpm
@@ -156,8 +155,8 @@ function mysql:results:loadgen() {
             echo "${!var}]," | sed 's/ /,/g'
         done
         echo "}"
-    } >${PARAM_RESULTS_FILE}
-    repro:info "Results written to $(realpath "${PARAM_RESULTS_FILE}")"
+    } >${BENCHMARK_RESULTS_FILE}
+    repro:info "Results written to $(realpath "${BENCHMARK_RESULTS_FILE}")"
 }
 
 function mysql:cleanup:sut() {
@@ -177,12 +176,12 @@ function mysql:cleanup:loadgen() {
 
 function mysql:create_raid() {
     repro:debug mysql:create_raid "$@"
-    repro:cmd sudo mkdir -p "${MYSQL_MOUNTPOINT}"
-    repro:cmd --force mountpoint "${MYSQL_MOUNTPOINT}" && return
+    repro:cmd sudo mkdir -p "${MYSQL_DB_MOUNTPOINT}"
+    repro:cmd --force mountpoint "${MYSQL_DB_MOUNTPOINT}" && return
     local i dev devlist=() dry_run=true
     for dev in /dev/nvme[0-9]n[0-9]; do
         [ -e /proc/mdstat ] && grep -q " ${dev#/dev/}\[" /proc/mdstat && continue
-        mount -l | grep -q "^$dev" || devlist+=("$dev")
+        mount -l | grep -q "^$dev" || devlist+=("$dev")  # TODO: only use devices that aren't already part of an md device
     done
     for i; do [ "$i" = "--create-raid" ] && dry_run=false && break; done
     $dry_run && repro:info "Skipping RAID creation" && return 0
@@ -191,26 +190,25 @@ function mysql:create_raid() {
     [ ${#devlist[@]} -eq 0 ] && repro:warn "create_raid: No available devices found" && return 0
     repro:info "Found ${#devlist[@]} unmounted devices: ${devlist[@]}, can create as /dev/md$i"
     repro:cmd sudo mdadm -CvR /dev/md$i -l raid0 --force -n ${#devlist[@]} "${devlist[@]}"
-    repro:cmd sudo mkfs.ext4 -j -m 1 /dev/md$i
+    repro:cmd sudo mkfs.${MYSQL_DB_FILESYSTEM} -j -m 1 /dev/md$i
 }
 
 function mysql:mount_raid() {
     repro:debug mysql:mount_raid "$@"
-    repro:cmd sudo mkdir -p ${MYSQL_MOUNTPOINT}
-    repro:cmd --force mountpoint "${MYSQL_MOUNTPOINT}" && return
+    repro:cmd sudo mkdir -p ${MYSQL_DB_MOUNTPOINT}
+    repro:cmd --force mountpoint "${MYSQL_DB_MOUNTPOINT}" && return
     local i=0
-    for i in {9..0} ''; do [ -e /dev/md${i} ] && break; done
+    for i in {9..0} ''; do [ -e /dev/md${i} ] && break; done  # TODO: only use devices that aren't already mounted
     [ -z "$i" ] && repro:error "No md device available to mount" && return 1
-    repro:info "Mounting /dev/md$i on ${MYSQL_MOUNTPOINT}"
-    repro:cmd sudo mount -t ext4 -o rw,noatime,nodiratime,data=ordered,nobarrier,nodelalloc,stripe=64 /dev/md$i ${MYSQL_MOUNTPOINT}
+    repro:info "Mounting /dev/md$i on ${MYSQL_DB_MOUNTPOINT}"
+    repro:cmd sudo mount -t ${MYSQL_DB_FILESYSTEM} -o rw,noatime,nodiratime,data=ordered,nobarrier,nodelalloc,stripe=64 /dev/md$i ${MYSQL_DB_MOUNTPOINT}
 }
 
 function mysql:help() {
     echo "Runs a mysql + hammerdb test. Hosts required: 1 SUT and 1 loadgen."
-    echo "Run the repro on SUT first to install and configure, then on loadgen to measure performance."
-    echo "Prereqs: fast storage mounted on ${MYSQL_MOUNTPOINT} on the SUT (recommended: 2 x NVME in RAID0)."
-    echo "If the mount is not active and the --create-raid argument is given, the repro will try to create a RAID0 array from all unmounted nvme devices."
+    echo "Results are measured on the loadgen."
+    echo "Prereqs: fast storage mounted on ${MYSQL_DB_MOUNTPOINT} on the SUT (recommended: 2 x NVME in RAID0)."
+    echo "If the mount is not active:"
+    echo " - if --create-raid argument is given, the benchmark will try to create a RAID0 array from all unmounted nvme devices;"
+    echo " - if a /dev/md<N> device is present, it will be mounted and used as is."
 }
-
-#hammerdb_git_location: https://github.com/TPC-Council/HammerDB.git
-#hammerdb_binary_location: https://github.com/TPC-Council/HammerDB/releases/download/v3.3/HammerDB-3.3-Linux.tar.gz

@@ -6,6 +6,7 @@ shopt -s dotglob expand_aliases extglob globstar nullglob xpg_echo
 (return 0 2>/dev/null) || { echo "This file is meant to be sourced by individual repros. Please run one of the repro.sh scripts instead."; exit 1; }
 [ "${BASH_VERSINFO[0]:-0}" -lt 5 ] && { echo "Please use bash version 5 or higher."; exit 1; }
 
+# ReproMark runtime parameters
 : ${REPROMARK_LOGLEVEL:=INFO} # 0=FATAL, 1=ERROR, 2=WARN, 3=INFO, 4+=DEBUG
 : ${REPROMARK_DYRUN:=false}
 : ${REPROMARK_CLEANUP:=true} # whether to automatically run cleanup at the end
@@ -13,8 +14,15 @@ shopt -s dotglob expand_aliases extglob globstar nullglob xpg_echo
 : ${REPROMARK_LOADGEN:=localhost}
 : ${REPROMARK_SUPPORT:=""}
 : ${REPROMARK_PORT:=31337}
-
+# this shouldn't normally need manual tweaking
 : ${REPROMARK_ROOT:=$(realpath "$(dirname "${BASH_SOURCE[0]}")/..")}
+
+# Standard parameters for all benchmarks
+: ${BENCHMARK_RESULTS_FILE:=~/results.json} # where the benchmark writes the parsed results
+: ${BENCHMARK_RESULTS_FORMAT:=json} # json, csv, txt (as supported by the benchmark)
+: ${BENCHMARK_SCHED_POLICY:=other} # other, batch, idle, fifo, rr
+: ${BENCHMARK_SCHED_PRIORITY:=1}
+[ "$BENCHMARK_SCHED_POLICY" != "fifo" -a "$BENCHMARK_SCHED_POLICY" != "rr" ] && BENCHMARK_SCHED_PRIORITY=0
 
 # logging
 exec 3>&1
@@ -65,20 +73,21 @@ function repro:fatal() {
 
 # print general and repro specific help
 function repro:help() {
-    [ -n "$1" ] && echo "Repro: $1"
     echo "Usage: $0 <benchmark_name> SUT|loadgen|support [--dry-run] [--sut=<hostname>] [--loadgen|--support=<hostname> [...]] [install|configure|run|results|cleanup [...]]"
     echo "Default: --sut=localhost --loadgen=localhost (this is usually not what you want)"
     echo "Standard operations: install, configure, run, results, cleanup"
     echo
-    repro:package:check_dependencies
-    echo
     [ -n "$1" ] && {
+        echo "Benchmark: $1"
         declare -F "$1:help" &>/dev/null && "$1:help" "$@"
     }
     echo
-    echo "Environment variables:"
+    echo "Environment settings:"
     set | sed -n '/^REPROMARK_/p'
+    set | sed -n '/^BENCHMARK_/p'
     [ -n "$1" ] && set | sed -n '/^'"$1"'_/p'
+    echo
+    repro:check_dependencies
 }
 
 # run an arbitrary command, from stdin or args
@@ -159,7 +168,7 @@ function repro:package:update() {
 }
 
 # install repromark dependencies
-function repro:package:check_dependencies() {
+function repro:check_dependencies() {
     repro:debug "Checking ReproMark dependencies"
     for cmd in realpath dirname sed nc sudo chmod cat rm; do
         type -t $cmd &>/dev/null && repro:debug "  OK: $cmd" || repro:error "  NOT FOUND: $cmd"
@@ -305,7 +314,7 @@ function repro:main() {
     [ -n "${REPROMARK_SUPPORT}" ] && repro:debug "Support: ${REPROMARK_SUPPORT}"
     repro:debug "Operations: ${ops[*]}"
 
-    repro:package:check_dependencies
+    repro:check_dependencies
 
     repro:debug ">>> cd $REPRO_ROOT"
     cd "$REPRO_ROOT"
