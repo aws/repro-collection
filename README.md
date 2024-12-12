@@ -10,10 +10,10 @@ A light framework for, and a loose collection of benchmarks and repro packages, 
 1. Provide a unified approach to processing/outputting results, to facilitate meaningful comparisons between setups
 
 ### 1.2 What ReproMark DOESN'T Do
-1. Manage infrastructure, security, or ACLs (create/delete instances, set up sudo and ssh, configure access and firewall, isolate the network, secure communication, etc)
-1. Act as a result repository (dashboard, result collection, persistent database, etc)
-1. Provide an automation framework (queuing, scheduling, etc)
-1. Pick the correct test approach for you (see https://github.com/aws/aws-graviton-getting-started/tree/main/perfrunbook to learn more about that)
+* Manage infrastructure, security, or ACLs (create/delete instances, set up sudo and ssh, configure access and firewall, isolate the network, secure communication, etc)
+* Act as a result repository (dashboard, result collection, persistent database, etc)
+* Provide an automation framework (queuing, scheduling, etc)
+* Pick the correct test approach for you (see https://github.com/aws/aws-graviton-getting-started/tree/main/perfrunbook to learn more about that)
 
 A notable limitation is that ReproMark does not inherently support reboot persistence (e.g. if a kernel update and subsequent reboot are required, this must be managed externally of ReproMark, as there is currently no mechanism for it to stop/reboot and automatically continue where it left off). This is, however, easy to implement by manually overriding the step sequence and ending one of the steps with the needed reboot.
 
@@ -28,9 +28,9 @@ In particular, this means:
 * the machines will not be reused for any purposes beyond this testing (e.g., they are cloud instances which will be terminated or reverted to a blank state when the testing is finished).
 
 **Root access and Internet access**: ReproMark itself requires neither. However, as part of the install/configure steps, benchmarks are likely to attempt to download and install dependency packages, tweak system properties, edit system wide files, create test users, etc.
-When this is done, the only mechanism employed by ReproMark is `sudo`, which is assumed to be available and configured correctly for the user running the benchmark.
+When this is performed, the only mechanism employed by ReproMark is `sudo`, which is assumed to be available and correctly preconfigured for the user running the benchmark.
 
-**Dependencies**: ReproMark is designed to be minimalistic as a framework in regards to dependencies. It expects `bash v5` and a few common commands such as `sed` or `cat`. The complete list of commands can be seen by running `REPROMARK_LOGLEVEL=DEBUG run.sh --help`.
+**Dependencies**: ReproMark is designed to be minimalistic as a framework in regards to dependencies. It runs on `bash v5` and only needs a few common commands such as `sed` or `cat`. The complete list of commands can be seen by running `REPROMARK_LOGLEVEL=DEBUG run.sh --help`.
 
 ### 1.4 Structure
 
@@ -55,7 +55,7 @@ For a more complete example, we will illustrate running a `mysql` benchmark.
 
 ### 2.1 Prepare
 
-Set up an arbitrary `SUT` and a corresponding `LDG`, each running e.g. Ubuntu 20.04, with the default user having unrestricted `sudo` access.
+Set up an arbitrary `SUT` and a corresponding `LDG`, each running e.g. Ubuntu 22.04, with the default user having unrestricted `sudo` access.
 
 Make sure the `LDG` can reach the `SUT`'s ports `3306` (`mysql`) and `31337` (ReproMark's communication channel; this is configurable by modifying `REPROMARK_PORT` before running).
 
@@ -97,21 +97,18 @@ An `mysql` results file might look like this:
     "latency_p50": [23.456,7.890,6.789,1.123,0.123],
     "latency_ratios": [45.678,12.345,12.678,0.123,0.123],
 }
+(In this case, the "score" of the benchmark is the `nopm` value.)
 ```
 
 ## Repro Scenarios
 
 Repros are an extension of the benchmark concept, and provide a way to express specific use cases by including additional configurations or even interactions between multiple benchmarks.
 
+All repro scenarios and associated files are under the `repros/` directory. Additionally, for ease of reference, branches may exist where a root symbolic link named `repro.sh` points to one of the repro scenarios in `repros/`.
+
 ## How To Extend
 
-### Adding a repro scenario
-
-[TBD]
-
-### Adding a benchmark
-
-[TBD]
+To find out how to add a benchmark or a repro scenario, please refer to the [Developer Guide](DeveloperGuide.md).
 
 ## License
 
