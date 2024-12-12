@@ -1,0 +1,27 @@
+# MySQL systemd service file
+
+[Unit]
+Description=MySQL Server
+After=network.target
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+Type=simple
+User=mysql
+Group=mysql
+PIDFile=/var/run/mysqld/mysqld.pid
+PermissionsStartOnly=true
+Environment="LD_PRELOAD={{ MYSQL_MALLOC_PATH }}"
+Environment=MYSQLD_PARENT_PID=1
+ExecStartPre=/usr/share/mysql/mysql-systemd-start pre
+ExecStart={{ MYSQLD_PATH }} --pid-file=/var/run/mysqld/mysqld.pid
+TimeoutSec=600
+Restart=on-failure
+RuntimeDirectory=mysqld
+RuntimeDirectoryMode=755
+LimitNOFILE=1048576
+LimitCORE=infinity
+CPUSchedulingPolicy={{ SCHED_POLICY:-other }}
+#CPUSchedulingPriority={{ SCHED_PRIORITY:-1 }}

@@ -1,0 +1,81 @@
+#
+# The MySQL database server configuration file.
+#
+# You can copy this to one of:
+# - "/etc/mysql/my.cnf" to set global options,
+# - "~/.my.cnf" to set user-specific options.
+# 
+# For explanations see
+# http://dev.mysql.com/doc/mysql/en/server-system-variables.html
+
+# The following values assume you have at least 32M ram
+[client]
+port   = {{ MYSQL_PORT }}
+socket = /var/run/mysqld/mysqld.sock
+
+
+[mysqld_safe]
+socket		= /var/run/mysqld/mysqld.sock
+nice		= 0
+
+[mysqld]
+user		= mysql
+pid-file	= /var/run/mysqld/mysqld.pid
+socket		= /var/run/mysqld/mysqld.sock
+port		= {{ MYSQL_PORT }}
+basedir		= /usr/
+datadir		= {{ MYSQL_MOUNTPOINT }}/data
+tmpdir		= /tmp
+lc-messages-dir	= /usr/share/mysql
+skip-external-locking
+
+bind-address		= 0.0.0.0
+mysqlx-bind-address = 0.0.0.0
+
+log_error = /var/log/mysql/error.log
+
+ssl-ca=/var/lib/mysql/ca.pem
+ssl-cert=/var/lib/mysql/server-cert.pem
+ssl-key=/var/lib/mysql/server-key.pem
+
+# if mysql >= 8.4.0
+#mysql_native_password=ON
+# else
+default-authentication-plugin=mysql_native_password
+
+myisam-recover-options  = BACKUP
+binlog_expire_logs_seconds = 864000
+max_binlog_size   = 500M
+
+ssl = 1
+max_connections = 21057
+back_log = 10000
+innodb_buffer_pool_size = 24G
+innodb_buffer_pool_instances = 24
+innodb_log_file_size = 1G
+innodb_log_files_in_group = 1
+innodb_file_per_table = 1
+innodb_sync_array_size = 2048
+innodb_flush_log_at_trx_commit = 1
+innodb_io_capacity = 5000
+innodb_io_capacity_max = 10000
+tmp_table_size = 16M
+max_heap_table_size = 16M
+log_bin = 1
+sync_binlog = 1
+server_id = mysql_server_1
+innodb_stats_persistent = 1
+innodb_read_io_threads = 4
+innodb_write_io_threads = 4
+key_buffer_size = 16M
+max_allowed_packet = 16M
+max_prepared_stmt_count = 2000000
+innodb_flush_method = fsync
+innodb_log_buffer_size = 64M
+read_buffer_size = 262144
+read_rnd_buffer_size = 524288
+binlog_format = MIXED
+innodb_purge_threads = 1
+table_open_cache = 8000
+table_open_cache_instances = 16
+open_files_limit = 1048576
