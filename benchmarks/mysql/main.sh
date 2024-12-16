@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-# Repro: mysql + hammerdb
+# Benchmark: mysql + hammerdb
+# source this file, don't run it
 
 # test configuration
 : ${HAMMERDB_PARAM_VUSERS_PER_CORE:=4} # number of "virtual users" per core
@@ -24,7 +24,7 @@
 function mysql:install:sut() {
     repro:debug SUT install
     repro:package:update
-    repro:package:install mysql-server libmysqlclient-dev acl ssl-cert pkg-config build-essential linux-tools-$(uname -r)
+    repro:package:install mysql-server libmysqlclient-dev acl ssl-cert pkg-config build-essential
     case "$MYSQL_MALLOC" in
         jemalloc) repro:package:install libjemalloc2;;
         tcmalloc*) repro:package:install google-perftools;;
@@ -172,6 +172,7 @@ function mysql:cleanup:loadgen() {
     repro:debug Loadgen cleanup "$@"
     repro:wait_for_sut "DONE"
     repro:cmd sudo rm /tmp/hammerdb.log /tmp/hdbxtprofile.log
+    return 0
 }
 
 function mysql:create_raid() {
