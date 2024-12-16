@@ -163,6 +163,7 @@ function mysql:cleanup:sut() {
     repro:debug SUT cleanup "$@"
     repro:cmd <<-EOT
         sudo mysql --execute "DROP DATABASE hammerdbtest;"
+        sudo service mysql stop
         sudo -i sh -c 'rm /tmp/ramdisk/mysql/{1,binlog}.*' &>/dev/null
         sync
 EOT
