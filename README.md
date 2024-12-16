@@ -108,7 +108,7 @@ All repro scenarios and associated files are under the `repros/` directory. Addi
 
 ## How To Extend
 
-To find out how to add a benchmark or a repro scenario, please refer to the [Developer Guide](DeveloperGuide.md).
+To find out how to add a benchmark or a repro scenario, please refer to the [Developer Guide](CONTRIBUTING.md).
 
 ## License
 
