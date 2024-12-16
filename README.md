@@ -15,7 +15,7 @@ A light framework for, and a loose collection of benchmarks and repro packages, 
 * Provide an automation framework (queuing, scheduling, etc)
 * Pick the correct test approach for you (see https://github.com/aws/aws-graviton-getting-started/tree/main/perfrunbook to learn more about that)
 
-A notable limitation is that ReproMark does not inherently support reboot persistence (e.g. if a kernel update and subsequent reboot are required, this must be managed externally of ReproMark, as there is currently no mechanism for it to stop/reboot and automatically continue where it left off). This is, however, easy to implement by manually overriding the step sequence and ending one of the steps with the needed reboot.
+A notable limitation is that ReproMark does not inherently handle reboot workflow (e.g. if a kernel update and subsequent reboot are required, this must be managed externally of ReproMark, as there is currently no mechanism for it to stop/reboot and automatically continue where it left off). There is, however, support for continuing execution where it left off before a reboot (or other stopping conditions).
 
 ### 1.3 Assumptions
 

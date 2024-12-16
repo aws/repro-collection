@@ -3,25 +3,31 @@
 
 set -a
 shopt -s dotglob expand_aliases extglob globstar nullglob xpg_echo
-(return 0 2>/dev/null) || { echo "This file is meant to be sourced by individual repros. Please run one of the repro.sh scripts instead."; exit 1; }
+(return 0 2>/dev/null) || { echo "This file is meant to be sourced. Please use run.sh or a repro script from repros/ to run tests."; exit 1; }
 [ "${BASH_VERSINFO[0]:-0}" -lt 5 ] && { echo "Please use bash version 5 or higher."; exit 1; }
 
 # ReproMark runtime parameters
-: ${REPROMARK_LOGLEVEL:=INFO} # 0=FATAL, 1=ERROR, 2=WARN, 3=INFO, 4+=DEBUG
+: ${REPROMARK_LOGLEVEL:=DEBUG} # 0=FATAL, 1=ERROR, 2=WARN, 3=INFO, 4+=DEBUG
 : ${REPROMARK_DYRUN:=false}
 : ${REPROMARK_CLEANUP:=true} # whether to automatically run cleanup at the end
 : ${REPROMARK_SUT:=localhost}
 : ${REPROMARK_LOADGEN:=localhost}
 : ${REPROMARK_SUPPORT:=""}
 : ${REPROMARK_PORT:=31337}
+: ${REPROMARK_PERSIST_FILE:=~/.repromark_state} # where the current scenario saves state e.g. between reboots
 # this shouldn't normally need manual tweaking
 : ${REPROMARK_ROOT:=$(realpath "$(dirname "${BASH_SOURCE[0]}")/..")}
+: ${REPROMARK_TMP:=$REPROMARK_ROOT/tmp}
+
+: ${SCENARIO_RESULTS_PATH:=~/}
 
 # Standard parameters for all benchmarks
-: ${BENCHMARK_RESULTS_FILE:=~/results.json} # where the benchmark writes the parsed results
+: ${BENCHMARK_RESULTS_FILE:=${SCENARIO_RESULTS_PATH}/results.json} # where the benchmark writes the parsed results
 : ${BENCHMARK_RESULTS_FORMAT:=json} # json, csv, txt (as supported by the benchmark)
 : ${BENCHMARK_SCHED_POLICY:=other} # other, batch, idle, fifo, rr
 : ${BENCHMARK_SCHED_PRIORITY:=1}
+BENCHMARK_SCHED_POLICY=${BENCHMARK_SCHED_POLICY,,}
+BENCHMARK_SCHED_POLICY=${BENCHMARK_SCHED_POLICY//sched_} # also accept SCHED_OTHER etc
 [ "$BENCHMARK_SCHED_POLICY" != "fifo" -a "$BENCHMARK_SCHED_POLICY" != "rr" ] && BENCHMARK_SCHED_PRIORITY=0
 
 # logging
@@ -73,19 +79,33 @@ function repro:fatal() {
 
 # print general and repro specific help
 function repro:help() {
-    echo "Usage: $0 <benchmark_name> SUT|loadgen|support [--dry-run] [--sut=<hostname>] [--loadgen|--support=<hostname> [...]] [install|configure|run|results|cleanup [...]]"
-    echo "Default: --sut=localhost --loadgen=localhost (this is usually not what you want)"
-    echo "Standard operations: install, configure, run, results, cleanup"
-    echo
-    [ -n "$1" ] && {
-        echo "Benchmark: $1"
+    local common_args="SUT|LDG|SUP [--dry-run] [--sut=<hostname>] [--ldg|--loadgen=<hostname> [...]] [--sup|--support=<hostname> [...]]"
+    if $REPROMARK_SCENARIO_MODE; then
+        echo "Usage: $0 $common_args [--restart]"
+        echo "Runs a repro scenario, optionally restarting from the first step."
+    else
+        echo "Usage: $0 <benchmark_name> $common_args [install|configure|run|results|cleanup [...]]"
+        echo "Runs a benchmark, optionally overriding which operations are executed."
+    fi
+    echo "Multiple --ldg and --sup arguments are allowed."
+    echo "By default, --sut=localhost and --ldg=localhost (this is not usually what you want)."
+    echo "Default steps: $(repro:default_steps)"
+    if [ -n "$1" ]; then
+        echo
+        $REPROMARK_SCENARIO_MODE || echo "Benchmark: $1"
         declare -F "$1:help" &>/dev/null && "$1:help" "$@"
-    }
+    else
+        echo -n "Available benchmarks: "
+        for f in "$REPROMARK_ROOT/benchmarks/"*; do
+            [ -d "$f" ] && echo -n "$(basename "$f") "
+        done
+        echo
+    fi
     echo
     echo "Environment settings:"
     set | sed -n '/^REPROMARK_/p'
     set | sed -n '/^BENCHMARK_/p'
-    [ -n "$1" ] && set | sed -n '/^'"$1"'_/p'
+    [ -n "$1" ] && set | sed -n '/^'"${1^^}"'_/p'
     echo
     repro:check_dependencies
 }
@@ -121,6 +141,42 @@ function repro:cmd() {
     else
         repro:cmd:single $force "$@"
     fi
+}
+
+# run a series of steps persistently (if the script stops and is restarted, pick up where it left off, even across reboots)
+# limitation: each step must be self contained, e.g. no multi-line loops are supported
+# args: <id> (a unique string ID to define the persisted state)
+function repro:persistent_steps() {
+    local step id="$1" counter=0
+    local state=$(repro:load_persistent_state "$id")
+    repro:debug "Running persistent steps $((state+1))+"
+    while read -r step; do
+        [[ "$step" =~ ^[[:space:]]*$ ]] || [[ "$step" =~ ^[[:space:]]*# ]] && continue
+        let counter++
+        [ $counter -le $state ] && continue
+        repro:debug "Running persistent step #$counter: $step"
+        repro:cmd "$step" || return $?
+        repro:save_persistent_state "$id" "$counter"
+    done
+    repro:save_persistent_state "$id"
+}
+
+# persistent state management; args: <id> [data] (if data is blank on save, remove the state)
+function repro:save_persistent_state() {
+    local state=$(repro:get_persistent_file "$1")
+    if [ -n "$2" ]; then
+        echo "$2" >"$state"
+    else
+        rm -f "$state"
+    fi
+}
+function repro:load_persistent_state() {
+    local state=$(repro:get_persistent_file "$1")
+    [ -e "$state" ] && cat "$state" || echo 0
+}
+function repro:get_persistent_file() {
+    local id="$(echo "$1" | md5sum)"
+    echo "${REPROMARK_PERSIST_FILE}.${id%% *}"
 }
 
 # install system packages
@@ -167,10 +223,33 @@ function repro:package:update() {
     repro:cmd $(sed <<<"$pkg_cmd" 's/^/sudo /;s/;/; sudo /g')
 }
 
+# remove system packages
+function repro:package:remove() {
+    local pkg_cmd
+    if type -t apt-get >/dev/null; then pkg_cmd="apt-get remove -y"
+    elif type -t dpkg >/dev/null; then pkg_cmd="dpkg --remove"
+    elif type -t dnf >/dev/null; then pkg_cmd="dnf remove -y"
+    elif type -t yum >/dev/null; then pkg_cmd="yum remove -y"
+    elif type -t rpm >/dev/null; then pkg_cmd="rpm --erase"
+    elif type -t pkg >/dev/null; then pkg_cmd="pkg delete"
+    elif type -t pacman >/dev/null; then pkg_cmd="pacman -Rns --noconfirm"
+    elif type -t brew >/dev/null; then pkg_cmd="brew uninstall"
+    elif type -t emerge >/dev/null; then pkg_cmd="emerge --depclean"
+    elif type -t zypper >/dev/null; then pkg_cmd="zypper remove -y"
+    elif type -t nix >/dev/null; then pkg_cmd="nix-env -e"
+    elif type -t flatpak >/dev/null; then pkg_cmd="flatpak remove -y"
+    elif type -t snap >/dev/null; then pkg_cmd="snap remove"
+    elif type -t apk >/dev/null; then pkg_cmd="apk del"
+    else repro:fatal "Could not determine package manager for removes"; fi
+    repro:debug "Removing packages: $@"
+    $REPROMARK_DYRUN && return 0
+    repro:cmd sudo $pkg_cmd "$@"
+}
+
 # install repromark dependencies
 function repro:check_dependencies() {
     repro:debug "Checking ReproMark dependencies"
-    for cmd in realpath dirname sed nc sudo chmod cat rm; do
+    for cmd in realpath dirname sed nc sudo chmod cat rm md5sum; do
         type -t $cmd &>/dev/null && repro:debug "  OK: $cmd" || repro:error "  NOT FOUND: $cmd"
     done
 }
@@ -227,55 +306,71 @@ function repro:wait_for_file() {
     return $retval
 }
 
-# wait for a TCP port to open on the SUT and send a message; args: [message [timeout]]
-# bash must be compiled with --enable-net-redirections
+# wait for a TCP port to open on the SUT and optionally send/receive a one-line message; args: [message_to_SUT [timeout]]
+# no data checks are performed, this just returns the first line read
+# Note: bash must be compiled with --enable-net-redirections
 function repro:wait_for_sut() {
-    local count=0 msg="$1" timeout="${2:-86400}"
+    local count=0 msg="$1" timeout="${2:-86400}" line fd
     repro:debug "Waiting for SUT port ${REPROMARK_PORT} to be open"
     $REPROMARK_DYRUN && return 0
-    while ! (echo "$msg" >/dev/tcp/${REPROMARK_SUT}/${REPROMARK_PORT}) &>/dev/null; do
+    while ! exec {fd}<>/dev/tcp/${REPROMARK_SUT}/${REPROMARK_PORT}; do
         [ $count -ge $timeout ] && repro:error "Timeout waiting for SUT to be ready" && return 1
         sleep 1
         let count++
-    done
+    done 2>/dev/null
+    repro:debug "Sending to SUT: $msg"
+    echo "$msg" >&$fd
+    read -r line <&$fd
+    repro:debug "SUT said: $line"
+    exec {fd}>&-
+    [ -n "$line" ] && echo "$line"
 }
 
-# wait for loadgen to connect to our port and send a string; args: [message]
+# wait for loadgen to connect to our port and optionally send/receive a one-line message; args: [message_from_LDG] [message_to_LDG]
+# if <message_from_LDG> is given, the function will wait until the message matches the data; otherwise it returns whatever it reads first
 function repro:wait_for_ldg() {
-    repro:debug "Waiting for loadgen to send signal"
+    local line ok
+    repro:debug "Waiting for loadgen to send ${1:-a signal}"
     while true; do
-        read -r line < <(nc -l -p ${REPROMARK_PORT}) || {
+        ok=false
+        while read -r line; do
+            ok=true
+            [ -z "$1" ] && break
+            [ "$line" = "$1" ] && return 0
+            repro:warn "Unexpected loadgen message: $line"
+        done < <(nc -l -p ${REPROMARK_PORT} <<<"$2")
+        ok || {
             repro:error "Could not read from port ${REPROMARK_PORT}"
             return 1
         }
-        [ -z "$1" -o "$line" = "$1" ] && return 0
-        repro:warn "Unexpected loadgen message: $line"
     done
+    [ -n "$line" ] && echo "$line"
 }
 
 # return default steps depending on repro and mode
 function repro:default_steps() {
-    local default_ops="install configure run results"
+    local default_ops="install configure run results" modes="${REPRO_MODE:-sut ldg sup}" opsub oplist op
     $REPROMARK_CLEANUP && default_ops+=" cleanup"
-    local opsub oplist op
+    [ -z "$REPRO_NAME" ] && echo $default_ops && return
     declare -F "$REPRO_NAME:default_steps:$REPRO_MODE" &>/dev/null && opsub=":$REPRO_MODE"
     declare -F "$REPRO_NAME:default_steps$opsub" &>/dev/null && "$REPRO_NAME:default_steps$opsub" && return
     for op in $default_ops; do
-        for opsub in "" ":$REPRO_MODE"; do
-            declare -F "$REPRO_NAME:$op$opsub" &>/dev/null && oplist+="$op " && break
+        for m in $modes ''; do
+            declare -F "$REPRO_NAME:$op:$m" &>/dev/null || declare -F "$REPRO_NAME:$op" &>/dev/null && break
         done
+        [ -n "$m" ] && oplist+="$op "
     done
     echo $oplist
 }
 
-function repro:main() {
+function repro:run() {
     # support "<benchmark> --help" and "--help <benchmark>"
     [ "${1:---help}" = --help ] && { repro:help "$2"; return; }
-    [ "${2:---help}" = --help ] && { repro:help "$1"; return; }
-
     REPRO_NAME="${1,,}"
+    [ "${2:---help}" = --help ] && { repro:help "$1"; return; }
     REPRO_MODE="${2,,}"
-    REPRO_ROOT=$(realpath "$REPROMARK_ROOT/benchmarks/$REPRO_NAME")
+
+    REPRO_ROOT=$(realpath "$REPROMARK_ROOT/benchmarks/$REPRO_NAME")  # Note: this will be invalid in scenario mode
     local loadgen_default=true support_default=true ops opargs=()
     shift 2
 
@@ -288,10 +383,13 @@ function repro:main() {
 
     while [ $# -gt 0 ]; do
         case "$1" in
+            '') : ;;
+            --help) repro:help "$REPRO_NAME" && return ;;
             --dry-run) REPROMARK_DYRUN=true ;;
             --sut=*) REPROMARK_SUT="${1#*=}" ;;
             --loadgen=*|--ldg=*) $loadgen_default && REPROMARK_LOADGEN="" && loadgen_default=false; REPROMARK_LOADGEN+="${1#*=} " ;;
             --support=*|--sup=*) $support_default && REPROMARK_SUPPORT="" && support_default=false; REPROMARK_SUPPORT+="${1#*=} " ;;
+            --restart) rm -f "${REPROMARK_PERSIST_FILE}".* ;;
             --*) opargs+=("$1") ;;
             -*) repro:fatal "Unknown option: $1" ;;
             *) break ;;
@@ -301,6 +399,7 @@ function repro:main() {
     [ $# -gt 0 ] && ops=("$@") || ops=( $(repro:default_steps) )
 
     [ ${#ops[@]} -eq 0 ] && repro:fatal "No default operations found for repro $REPRO_NAME and mode $REPRO_MODE"
+    local op
     for op in "${ops[@]}"; do
         [[ "$op" = --* ]] && opargs+=("$op") && continue
         declare -F "$REPRO_NAME:$op:$REPRO_MODE" &>/dev/null || declare -F "$REPRO_NAME:$op" &>/dev/null || repro:fatal "Repro '$REPRO_NAME' does not support operation '$op'"
@@ -315,14 +414,35 @@ function repro:main() {
     repro:debug "Operations: ${ops[*]}"
 
     repro:check_dependencies
+    mkdir -p "${REPROMARK_TMP}" || repro:error "Could not create temporary directory ${REPROMARK_TMP}"
 
-    repro:debug ">>> cd $REPRO_ROOT"
-    cd "$REPRO_ROOT"
+    [ -d "$REPRO_ROOT" ] && {
+        repro:debug ">>> cd $REPRO_ROOT"
+        cd "$REPRO_ROOT"
+    }
     local opsub
     for op in "${ops[@]}"; do
         [[ "$op" = --* ]] && continue
         repro:info "Operation: $op"
+        # the --force args below will run through each op regardless of dry mode; the dry setting will still be respected inside the op, if all commands are repro: friendly
+        # pre hooks (stop if they return error)
+        declare -F "$REPRO_NAME:pre:$op" &>/dev/null && { repro:cmd --force "$REPRO_NAME:pre:$op" "${opargs[@]}" || break; }
+        declare -F "$REPRO_NAME:pre:$op:$REPRO_MODE" &>/dev/null && { repro:cmd --force "$REPRO_NAME:pre:$op:$REPRO_MODE" "${opargs[@]}" || break; }
+        # operation
         declare -F "$REPRO_NAME:$op:$REPRO_MODE" &>/dev/null && opsub=":$REPRO_MODE" || opsub=''
-        repro:cmd --force "$REPRO_NAME:$op$opsub" "${opargs[@]}"  # the --force arg will run through each op regardless of dry mode; the dry setting will still be respected inside the op, if all commands are repro: friendly
+        repro:cmd --force "$REPRO_NAME:$op$opsub" "${opargs[@]}" || break
+        # post hooks
+        declare -F "$REPRO_NAME:post:$op:$REPRO_MODE" &>/dev/null && { repro:cmd --force "$REPRO_NAME:post:$op:$REPRO_MODE" "${opargs[@]}" || break; }
+        declare -F "$REPRO_NAME:post:$op" &>/dev/null && { repro:cmd --force "$REPRO_NAME:post:$op" "${opargs[@]}" || break; }
+        true
     done
 }
+
+function repro:scenario() {
+    REPROMARK_SCENARIO_MODE=true
+    repro:run scenario "$@"
+}
+REPROMARK_SCENARIO_MODE=false
+
+# Also source benchmarks provided as command line args
+for b; do [ -e "${REPROMARK_ROOT}/benchmarks/$b/main.sh" ] && . "${REPROMARK_ROOT}/benchmarks/$b/main.sh"; done
