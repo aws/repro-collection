@@ -46,10 +46,11 @@ ReproMark consists of benchmarks identified with a unique name (each placed in a
 
 ## 2. How To Run
 
-Running a benchmark can be as simple as `run.sh SUT`.
+Running a benchmark when no load generator is required can be as simple as `run.sh benchmark_name SUT`.
 
-Parameters are configured via environment variables which can be modified before running `run.sh`. For convenience, a few parameters (`--dry-run`, `--sut=`, `--loadgen=`, `--support=`) are also available via command line arguments.
-All available parameters are listed by running `run.sh [<benchmark_name>] --help`.
+Runtime parameters are configured via environment variables which can be modified before running `run.sh`. For convenience, a few parameters (`--dry-run`, `--sut=`, `--loadgen=`, `--support=`) are also available via command line arguments.
+
+Available parameters and other helpful information are given when running `run.sh [<benchmark_name>] --help`.
 
 For a more complete example, we will illustrate running a `mysql` benchmark.
 
@@ -69,16 +70,16 @@ Clone the ReproMark repository on both the `SUT` and `LDG`. In this example, we'
 
 *Note*: It is good practice to use a terminal abstraction layer such as `screen`, `tmux`, or `nohup`, so that the benchmark can continue running without interruption when your network connection to the `SUT`/`LDG` experiences disconnections.
 
-* On the SUT, run: `~/repromark/run.sh mysql SUT --sut=<sut_address> --ldg=<ldg_address> 2>&1 | tee ~/sut.log` - this will install and start the `mysql` service, and wait for the LDG to signal when testing is finished.
+* On the SUT, run: `~/repromark/run.sh mysql SUT --ldg=<ldg_address> 2>&1 | tee ~/sut.log` - this will install and start the `mysql` service, and wait for the LDG to signal when testing is finished.
 
-* On the LDG, run: `~/repromark/run.sh mysql LDG --sut=<sut_address> --ldg=<ldg_address> 2>&1 | tee ~/ldg.log` - this will install and run the `HammerDB` load generator, produce and export the results when finished, and initiate cleanup both on itself and on the SUT.
+* On the LDG, run: `~/repromark/run.sh mysql LDG --sut=<sut_address> 2>&1 | tee ~/ldg.log` - this will install and run the `HammerDB` load generator, produce and export the results when finished, and initiate cleanup both on itself and on the SUT.
 
 Done!
 
 *Notes*:
 * Make sure you provide the `LDG` address the *same way* it will be visible on the `SUT`. For example, if the LDG has a private network IP address and another address used to access the Internet, specify the address that the `SUT` will see when connected to. Otherwise, you will get `mysql` errors about unauthorized user connections. If in doubt, you can supply all addresses by using multiple `--ldg=` arguments.
 * The machine order in which you run ReproMark (`LDG` or `SUT` first) does not matter. The machines will wait for each other at the correct times to synchronize the workflow.
-* You can omit the `--sut=` parameter on the `SUT` and the `--ldg=` parameter on the `LDG` for this particular benchmark; however, it's harmless and least prone to error to provide both at all times.
+* Both the `--sut=` and the `--ldg=` parameters can be specified on the`SUT` and the `LDG`; while longer, it's harmless and least prone to error to provide both at all times.
 * Some benchmarks support more than one `LDG`. These can be supplied by repeating the `--ldg=` argument as many times as needed.
 * Each benchmark runs by going through a series of steps (operations). These steps can be explicitly specified on the command line, but if left blank, the default step sequence (`install`/`configure`/`run`/`results`/`cleanup`) will be executed.
 
@@ -108,7 +109,7 @@ The "Benchmark score" message and the `score` entry in the results file are stan
 
 Repros are an extension of the benchmark concept, and provide a way to express specific use cases by including additional configurations or even interactions between multiple benchmarks.
 
-All repro scenarios and associated files are under the `repros/` directory. Additionally, for ease of reference, branches may exist where a root symbolic link named `repro.sh` points to one of the repro scenarios in `repros/`.
+All repro scenarios are under the `repros/` directory. Any associated files must be placed in a subdirectory with the same name as the repro scenario.
 
 ## How To Extend
 
