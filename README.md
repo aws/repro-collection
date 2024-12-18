@@ -61,6 +61,8 @@ Make sure the `LDG` can reach the `SUT`'s ports `3306` (`mysql`) and `31337` (Re
 
 The `LDG` should be sized appropriately to *not* be a bottleneck in any part of the benchmark (data generation, networking, processing, etc) - otherwise, the measured results will be invalid in the context of the `SUT`.
 
+A RAID0 array is highly recommended for the `mysql` database; the benchmark will attempt to find available disks on the SUT, create a RAID0 array, and mount it for you. If an available (not mounted) RAID0 array already exists, it will be used instead.
+
 Clone the ReproMark repository on both the `SUT` and `LDG`. In this example, we'll assume the path to the repository is `~/repromark` in both cases.
 
 ### 2.2 Run

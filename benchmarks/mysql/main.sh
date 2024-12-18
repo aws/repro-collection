@@ -30,8 +30,7 @@ function mysql:install:sut() {
         tcmalloc*) repro:package:install google-perftools;;
     esac
     MYSQL_MALLOC_PATH=$(find /usr/lib/ -name "lib${MYSQL_MALLOC}\.so[.0-9]*" -print -quit)
-    mysql:create_raid "$@"
-    mysql:mount_raid "$@"
+    mysql:create_and_mount_raid "$@"
     repro:cmd <<-EOT
         [ -L /tmp/mysql.sock ] || sudo ln -sf \$(mysql_config --socket) /tmp/mysql.sock  # needed if HammerDB is running on the SUT
 
@@ -176,41 +175,44 @@ function mysql:cleanup:loadgen() {
     return 0
 }
 
-function mysql:create_raid() {
+# find an existing suitable raid0 device, or make one if possible and if no raid0 already available
+function mysql:create_and_mount_raid() {
     repro:debug mysql:create_raid "$@"
-    repro:cmd sudo mkdir -p "${MYSQL_DB_MOUNTPOINT}"
-    repro:cmd --force mountpoint "${MYSQL_DB_MOUNTPOINT}" && return
-    local i dev devlist=() dry_run=true
-    for dev in /dev/nvme[0-9]n[0-9]; do
-        [ -e /proc/mdstat ] && grep -q " ${dev#/dev/}\[" /proc/mdstat && continue
-        mount -l | grep -q "^$dev" || devlist+=("$dev")  # TODO: only use devices that aren't already part of an md device
-    done
-    for i; do [ "$i" = "--create-raid" ] && dry_run=false && break; done
-    $dry_run && repro:info "Skipping RAID creation" && return 0
-    for i in {0..9} ''; do [ -e /dev/md${i} ] || break; done
-    [ -z "$i" ] && repro:error "No free md devices found" && return 1
-    [ ${#devlist[@]} -eq 0 ] && repro:warn "create_raid: No available devices found" && return 0
-    repro:info "Found ${#devlist[@]} unmounted devices: ${devlist[@]}, can create as /dev/md$i"
-    repro:cmd sudo mdadm -CvR /dev/md$i -l raid0 --force -n ${#devlist[@]} "${devlist[@]}"
-    repro:cmd sudo mkfs.${MYSQL_DB_FILESYSTEM} -j -m 1 /dev/md$i
-}
-
-function mysql:mount_raid() {
-    repro:debug mysql:mount_raid "$@"
-    repro:cmd sudo mkdir -p ${MYSQL_DB_MOUNTPOINT}
-    repro:cmd --force mountpoint "${MYSQL_DB_MOUNTPOINT}" && return
-    local i=0
-    for i in {9..0} ''; do [ -e /dev/md${i} ] && break; done  # TODO: only use devices that aren't already mounted
-    [ -z "$i" ] && repro:error "No md device available to mount" && return 1
-    repro:info "Mounting /dev/md$i on ${MYSQL_DB_MOUNTPOINT}"
-    repro:cmd sudo mount -t ${MYSQL_DB_FILESYSTEM} -o rw,noatime,nodiratime,data=ordered,nobarrier,nodelalloc,stripe=64 /dev/md$i ${MYSQL_DB_MOUNTPOINT}
+    local dev type pk fs mp raid mountpoint="${1:-$MYSQL_DB_MOUNTPOINT}"
+    local -a devs in_use
+    repro:cmd sudo mkdir -p "$mountpoint"
+    while read -r dev type pk fs mp; do
+        [ "$mp" = "$mountpoint" ] && {
+            repro:info "Already mounted: $dev ($type, $fs) on $mountpoint"
+            return 0
+        }
+        [ "$type" = "raid0" ] && [ -z "$mp" ] && raid=$dev && break
+        [ -n "$pk" ] && in_use+=("/dev/$pk")
+        [ "$type" = "disk" ] || continue
+        [ -z "$pk" ] && devs+=("$dev")
+    done < <(lsblk -nro PATH,TYPE,PKNAME,FSTYPE,MOUNTPOINT --sort NAME)
+    [ -z "$raid" ] && {
+        # remove disks that are already in use
+        for dev in "${in_use[@]}"; do
+            devs=(${devs[@]/$dev})
+        done
+        [ ${#devs[@]} -eq 0 ] && repro:error "No available disks found to create RAID0 array" && return 0
+        raid=/dev/md0
+        fs=${MYSQL_DB_FILESYSTEM}
+        repro:info "Found ${#devs[@]} unmounted disks: ${devs[@]}, creating as $raid"
+        repro:cmd sudo mdadm -CvR $raid -l raid0 --force -n ${#devs[@]} "${devs[@]}"
+        repro:cmd sudo mkfs.$fs -j -m 1 $raid
+    }
+    repro:info "Mounting $raid ($fs) on $mountpoint"
+    repro:cmd sudo mount -t $fs -o rw,noatime,nodiratime,data=ordered,nobarrier,nodelalloc,stripe=64 $raid "$mountpoint"
+    return 0
 }
 
 function mysql:help() {
     echo "Runs a mysql + hammerdb test. Hosts required: 1 SUT and 1 loadgen."
-    echo "Results are measured on the loadgen."
-    echo "Prereqs: fast storage mounted on ${MYSQL_DB_MOUNTPOINT} on the SUT (recommended: 2 x NVME in RAID0)."
+    echo "Results are measured on the loadgen and written to ${BENCHMARK_RESULTS_FILE}."
+    echo "Recommended: 2+ fast (NVME) disks on the SUT to be used for a RAID0 array mounted on ${MYSQL_DB_MOUNTPOINT}."
     echo "If the mount is not active:"
-    echo " - if --create-raid argument is given, the benchmark will try to create a RAID0 array from all unmounted nvme devices;"
-    echo " - if a /dev/md<N> device is present, it will be mounted and used as is."
+    echo " - the benchmark will attempt to find available disks to create and format a RAID0 array;"
+    echo " - if a RAID0 array is already created and not mounted, it will be mounted and used as is (not formatted)."
 }
