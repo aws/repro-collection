@@ -148,6 +148,8 @@ function mysql:results:loadgen() {
     {
         local var
         echo "{"
+        echo "    \"score\": [${nopm[@]}],"
+        echo "    \"score_units\": \"New Orders Per Minute\","
         for var in nopm tpm latency_min latency_avg latency_max latency_p99 latency_p95 latency_p50 latency_ratios; do
             echo -n "    \"${var}\": ["
             var=${var}[@]
@@ -156,6 +158,7 @@ function mysql:results:loadgen() {
         echo "}"
     } >${BENCHMARK_RESULTS_FILE}
     repro:info "Results written to $(realpath "${BENCHMARK_RESULTS_FILE}")"
+    repro:info "Benchmark score: ${nopm[@]}"
 }
 
 function mysql:cleanup:sut() {

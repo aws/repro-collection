@@ -84,11 +84,12 @@ Done!
 
 ### Results
 
-The `mysql` benchmark will automatically parse the HammerDB output and create a `~/results.json` file on the `LDG`, containing the test conclusion (NOPM and TPM numbers, along with measured latency).
+The `mysql` benchmark will automatically parse the HammerDB output and create a `~/results.json` file on the `LDG`, containing the test conclusion (NOPM and TPM numbers, along with measured latency). It will also print a message like "Benchmark score: NNNN".
 
 An `mysql` results file might look like this:
 ```
 {
+    "score": [123456],
     "nopm": [123456],
     "tpm": [234567],
     "latency_min": [1.234,1.345,12.345,0.123,0.456],
@@ -99,7 +100,8 @@ An `mysql` results file might look like this:
     "latency_p50": [23.456,7.890,6.789,1.123,0.123],
     "latency_ratios": [45.678,12.345,12.678,0.123,0.123],
 }
-(In this case, the "score" of the benchmark is the `nopm` value.)
+
+The "Benchmark score" message and the `score` entry in the results file are standardized outputs for all benchmarks.
 ```
 
 ## Repro Scenarios
