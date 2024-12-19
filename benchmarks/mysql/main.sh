@@ -218,4 +218,5 @@ function mysql:help() {
     echo "If the mount is not active:"
     echo " - the benchmark will attempt to find available disks to create and format a RAID0 array;"
     echo " - if a RAID0 array is already created and not mounted, it will be mounted and used as is (not formatted)."
+    echo "Note: occasionally, the HammerDB virtual users fail to shut down in time, and as a result the latency measurements are empty. The recommended recourse is rerunning the benchmark."
 }
