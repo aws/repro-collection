@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ReproMark main entry file
+# ReproMark main entry file for benchmarks
 #
 # Example usage: run.sh mysql SUT --sut=foo.example.com --loadgen=bar.example.com 2>&1 | tee -a ~/run.log | less -R
 

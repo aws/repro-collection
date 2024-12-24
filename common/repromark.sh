@@ -79,24 +79,30 @@ function repro:fatal() {
 
 # print general and repro specific help
 function repro:help() {
-    local common_args="SUT|LDG|SUP [--dry-run] [--sut=<hostname>] [--ldg|--loadgen=<hostname> [...]] [--sup|--support=<hostname> [...]]"
+    local task subdir name common_args="SUT|LDG|SUP [--dry-run] [--sut=<hostname>] [--ldg|--loadgen=<hostname> [...]] [--sup|--support=<hostname> [...]]"
     if $REPROMARK_SCENARIO_MODE; then
-        echo "Usage: $0 $common_args [--restart]"
+        echo "Usage: $0 <scenario_name> $common_args [--restart]"
         echo "Runs a repro scenario, optionally restarting from the first step."
+        task="Scenario"
+        subdir="repros"
+        name="$SCENARIO_NAME"
     else
         echo "Usage: $0 <benchmark_name> $common_args [install|configure|run|results|cleanup [...]]"
         echo "Runs a benchmark, optionally overriding which operations are executed."
+        task="Benchmark"
+        subdir="benchmarks"
+        name="$1"
     fi
     echo "Multiple --ldg and --sup arguments are allowed."
     echo "By default, --sut=localhost and --ldg=localhost (this is not usually what you want)."
-    echo "Default steps: $(repro:default_steps)"
+    $REPROMARK_SCENARIO_MODE || echo "Default steps: $(repro:default_steps)"
     if [ -n "$1" ]; then
         echo
-        $REPROMARK_SCENARIO_MODE || echo "Benchmark: $1"
+        echo "$task: $name"
         declare -F "$1:help" &>/dev/null && "$1:help" "$@"
     else
-        echo -n "Available benchmarks: "
-        for f in "$REPROMARK_ROOT/benchmarks/"*; do
+        echo -n "Available ${task}s: "
+        for f in "$REPROMARK_ROOT/${subdir}/"*; do
             [ -d "$f" ] && echo -n "$(basename "$f") "
         done
         echo
@@ -339,7 +345,7 @@ function repro:wait_for_ldg() {
             [ "$line" = "$1" ] && return 0
             repro:warn "Unexpected loadgen message: $line"
         done < <(nc -l -p ${REPROMARK_PORT} <<<"$2")
-        ok || {
+        $ok || {
             repro:error "Could not read from port ${REPROMARK_PORT}"
             return 1
         }
@@ -444,5 +450,15 @@ function repro:scenario() {
 }
 REPROMARK_SCENARIO_MODE=false
 
+function repro:include_benchmarks() {
+    for b; do
+        [ -z "$b" ] && continue
+        [ -e "${REPROMARK_ROOT}/benchmarks/$b/main.sh" ] && . "${REPROMARK_ROOT}/benchmarks/$b/main.sh" || {
+            repro:error "Could not load benchmark '$b'"
+            return 1
+        }
+    done
+}
+
 # Also source benchmarks provided as command line args
-for b; do [ -e "${REPROMARK_ROOT}/benchmarks/$b/main.sh" ] && . "${REPROMARK_ROOT}/benchmarks/$b/main.sh"; done
+repro:include_benchmarks "$@"
