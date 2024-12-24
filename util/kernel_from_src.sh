@@ -125,11 +125,11 @@ $install_kernel && {
         sudo grubby $grbarg --add-kernel=$kernel --make-default --title=$(basename $kernel)
         #sudo grubby --set-default "$kernel"
     else
-        KERNELPATHSTRING=$(basename "$kernel")
-        KERNELVER=${KERNELPATHSTRING##vmlinuz-}
+        KERNELVER=${kernel#*-}
         MID=$(sudo awk '/Advanced options for Ubuntu/{print $(NF-1)}' /boot/grub/grub.cfg | cut -d\' -f2)
-        KID=$(sudo awk "/with Linux $KERNELVER/"'{print $(NF-1)}' /boot/grub/grub.cfg | cut -d\' -f2 | head -n1)
-        sudo sed -i '/^GRUB_DEFAULT=/s/\(.*=\).*/\1"'"${MID}>${KID}"'"/' /etc/default/grub
+        KID=$(sudo awk "/with Linux $KERNELVER/"'{print $(NF-1)}' /boot/grub/grub.cfg | grep -v recovery | cut -d\' -f2 | head -n1)
+        sudo sed -i '/^GRUB_DEFAULT=/s/=.*/="'"${MID}>${KID}"'"/' /etc/default/grub
+        grep ^GRUB_DEFAULT /etc/default/grub
         sudo update-grub
     fi
     echo "Kernel: $(ls -l $kernel)"
