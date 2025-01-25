@@ -1,4 +1,4 @@
-# ReproMark common functions and settings
+# Repro Framework common functions and settings
 # source this file, don't run it
 
 set -a
@@ -6,39 +6,39 @@ shopt -s dotglob expand_aliases extglob globstar nullglob xpg_echo
 (return 0 2>/dev/null) || { echo "This file is meant to be sourced. Please use run.sh or a repro script from repros/ to run tests."; exit 1; }
 [ "${BASH_VERSINFO[0]:-0}" -lt 5 ] && { echo "Please use bash version 5 or higher."; exit 1; }
 
-# ReproMark runtime parameters
-: ${REPROMARK_LOGLEVEL:=DEBUG} # 0=FATAL, 1=ERROR, 2=WARN, 3=INFO, 4+=DEBUG
-: ${REPROMARK_DYRUN:=false}
-: ${REPROMARK_CLEANUP:=true} # whether to automatically run cleanup at the end
-: ${REPROMARK_SUT:=localhost}
-: ${REPROMARK_LOADGEN:=localhost}
-: ${REPROMARK_SUPPORT:=""}
-: ${REPROMARK_PORT:=31337}
-: ${REPROMARK_PERSIST_FILE:=~/.repromark_state} # where the current scenario saves state e.g. between reboots
+# Repro Framework runtime parameters
+: ${REPROCFG_LOGLEVEL:=DEBUG} # 0=FATAL, 1=ERROR, 2=WARN, 3=INFO, 4+=DEBUG
+: ${REPROCFG_DYRUN:=false}
+: ${REPROCFG_CLEANUP:=true} # whether to automatically run cleanup at the end
+: ${REPROCFG_SUT:=localhost}
+: ${REPROCFG_LOADGEN:=localhost}
+: ${REPROCFG_SUPPORT:=""}
+: ${REPROCFG_PORT:=31337}
+: ${REPROCFG_PERSIST_FILE:=~/.repro_state} # where the current scenario saves state e.g. between reboots
 # this shouldn't normally need manual tweaking
-: ${REPROMARK_ROOT:=$(realpath "$(dirname "${BASH_SOURCE[0]}")/..")}
-: ${REPROMARK_TMP:=$REPROMARK_ROOT/tmp}
+: ${REPROCFG_ROOT:=$(realpath "$(dirname "${BASH_SOURCE[0]}")/..")}
+: ${REPROCFG_TMP:=$REPROCFG_ROOT/tmp}
 
 : ${SCENARIO_RESULTS_PATH:=~/}
 
-# Standard parameters for all benchmarks
-: ${BENCHMARK_RESULTS_FILE:=${SCENARIO_RESULTS_PATH}/results.json} # where the benchmark writes the parsed results
-: ${BENCHMARK_RESULTS_FORMAT:=json} # json, csv, txt (as supported by the benchmark)
-: ${BENCHMARK_SCHED_POLICY:=other} # other, batch, idle, fifo, rr
-: ${BENCHMARK_SCHED_PRIORITY:=1}
-BENCHMARK_SCHED_POLICY=${BENCHMARK_SCHED_POLICY,,}
-BENCHMARK_SCHED_POLICY=${BENCHMARK_SCHED_POLICY//sched_} # also accept SCHED_OTHER etc
-[ "$BENCHMARK_SCHED_POLICY" != "fifo" -a "$BENCHMARK_SCHED_POLICY" != "rr" ] && BENCHMARK_SCHED_PRIORITY=0
+# Standard parameters for all workloads
+: ${WORKLOAD_RESULTS_FILE:=${SCENARIO_RESULTS_PATH}/results.json} # where the workload writes the parsed results
+: ${WORKLOAD_RESULTS_FORMAT:=json} # json, csv, txt (as supported by the workload)
+: ${WORKLOAD_SCHED_POLICY:=other} # other, batch, idle, fifo, rr
+: ${WORKLOAD_SCHED_PRIORITY:=1}
+WORKLOAD_SCHED_POLICY=${WORKLOAD_SCHED_POLICY,,}
+WORKLOAD_SCHED_POLICY=${WORKLOAD_SCHED_POLICY//sched_} # also accept SCHED_OTHER etc
+[ "$WORKLOAD_SCHED_POLICY" != "fifo" -a "$WORKLOAD_SCHED_POLICY" != "rr" ] && WORKLOAD_SCHED_PRIORITY=0
 
 # logging
 exec 3>&1
 function repro:log:single() {
-    local i level="${1^^}" maxlevel=${REPROMARK_LOGLEVEL}
+    local i level="${1^^}" maxlevel=${REPROCFG_LOGLEVEL}
     local level_names=( FATAL ERROR WARN INFO DEBUG )
     local level_colors=( $'\033[1;31m' $'\033[31m' $'\033[33m' '' $'\033[36m' $'\033[m' )
     for i in "${!level_names[@]}"; do
         [ "${level}" = "${level_names[$i]}" ] && level=$i
-        [ "${REPROMARK_LOGLEVEL}" = "${level_names[$i]}" ] && maxlevel=$i
+        [ "${REPROCFG_LOGLEVEL}" = "${level_names[$i]}" ] && maxlevel=$i
     done
     [ $level -ge 0 ] || level=0
     [ $level -gt $maxlevel ] && return 0
@@ -80,37 +80,37 @@ function repro:fatal() {
 # print general and repro specific help
 function repro:help() {
     local task subdir name common_args="SUT|LDG|SUP [--dry-run] [--sut=<hostname>] [--ldg|--loadgen=<hostname> [...]] [--sup|--support=<hostname> [...]]"
-    if $REPROMARK_SCENARIO_MODE; then
+    if $REPROCFG_SCENARIO_MODE; then
         echo "Usage: $0 <scenario_name> $common_args [--restart]"
-        echo "Runs a repro scenario, optionally restarting from the first step."
+        echo "Runs or continues a repro scenario, optionally restarting from the first step."
         task="Scenario"
         subdir="repros"
         name="$SCENARIO_NAME"
     else
-        echo "Usage: $0 <benchmark_name> $common_args [install|configure|run|results|cleanup [...]]"
-        echo "Runs a benchmark, optionally overriding which operations are executed."
-        task="Benchmark"
-        subdir="benchmarks"
+        echo "Usage: $0 <workload_name> $common_args [install|configure|run|results|cleanup [...]]"
+        echo "Runs a workload, optionally overriding which operations are executed."
+        task="Workload"
+        subdir="workloads"
         name="$1"
     fi
     echo "Multiple --ldg and --sup arguments are allowed."
     echo "By default, --sut=localhost and --ldg=localhost (this is not usually what you want)."
-    $REPROMARK_SCENARIO_MODE || echo "Default steps: $(repro:default_steps)"
+    $REPROCFG_SCENARIO_MODE || echo "Default steps: $(repro:default_steps)"
     if [ -n "$1" ]; then
         echo
         echo "$task: $name"
         declare -F "$1:help" &>/dev/null && "$1:help" "$@"
     else
         echo -n "Available ${task}s: "
-        for f in "$REPROMARK_ROOT/${subdir}/"*; do
+        for f in "$REPROCFG_ROOT/${subdir}/"*; do
             [ -d "$f" ] && echo -n "$(basename "$f") "
         done
         echo
     fi
     echo
     echo "Environment settings:"
-    set | sed -n '/^REPROMARK_/p'
-    set | sed -n '/^BENCHMARK_/p'
+    set | sed -n '/^REPROCFG_/p'
+    set | sed -n '/^WORKLOAD_/p'
     [ -n "$1" ] && set | sed -n '/^'"${1^^}"'_/p'
     echo
     repro:check_dependencies
@@ -123,7 +123,7 @@ function repro:cmd:single() {
     local force=false
     [ "$1" = "--force" ] && force=true && shift
     repro:debug "Running command: $@"
-    $REPROMARK_DYRUN && ! $force && return 0
+    $REPROCFG_DYRUN && ! $force && return 0
     eval "$@" 2> >(repro:log_stderr) | repro:log # Note: the pipe executes the command in a subshell
     local ret=${PIPESTATUS[0]}
     [ $ret -ne 0 ] && repro:error "Command returned $ret" || repro:info "Command returned $ret"
@@ -182,7 +182,7 @@ function repro:load_persistent_state() {
 }
 function repro:get_persistent_file() {
     local id="$(echo "$1" | md5sum)"
-    echo "${REPROMARK_PERSIST_FILE}.${id%% *}"
+    echo "${REPROCFG_PERSIST_FILE}.${id%% *}"
 }
 
 # install system packages
@@ -204,7 +204,7 @@ function repro:package:install() {
     elif type -t apk >/dev/null; then pkg_cmd="apk add"
     else repro:fatal "Could not determine package manager for installs"; fi
     repro:debug "Installing packages: $@"
-    $REPROMARK_DYRUN && return 0
+    $REPROCFG_DYRUN && return 0
     repro:cmd sudo $pkg_cmd "$@"
 }
 
@@ -225,7 +225,7 @@ function repro:package:update() {
     elif type -t apk >/dev/null; then pkg_cmd="apk update; apk upgrade"
     else repro:fatal "Could not determine package manager for updates"; fi
     repro:debug "Updating packages $@"
-    $REPROMARK_DYRUN && return 0
+    $REPROCFG_DYRUN && return 0
     repro:cmd $(sed <<<"$pkg_cmd" 's/^/sudo /;s/;/; sudo /g')
 }
 
@@ -248,13 +248,13 @@ function repro:package:remove() {
     elif type -t apk >/dev/null; then pkg_cmd="apk del"
     else repro:fatal "Could not determine package manager for removes"; fi
     repro:debug "Removing packages: $@"
-    $REPROMARK_DYRUN && return 0
+    $REPROCFG_DYRUN && return 0
     repro:cmd sudo $pkg_cmd "$@"
 }
 
-# install repromark dependencies
+# install Repro Framework dependencies
 function repro:check_dependencies() {
-    repro:debug "Checking ReproMark dependencies"
+    repro:debug "Checking Repro Framework dependencies"
     for cmd in realpath dirname sed nc sudo chmod cat rm md5sum; do
         type -t $cmd &>/dev/null && repro:debug "  OK: $cmd" || repro:error "  NOT FOUND: $cmd"
     done
@@ -300,7 +300,7 @@ function repro:wait_for_file() {
     local minus_x=${-//[^x]}
     set +x
     repro:debug "Waiting for $1 to appear"
-    $REPROMARK_DYRUN && return 0
+    $REPROCFG_DYRUN && return 0
     local count=0 retval=0
     while [ ! -e "$1" ]; do
         [ -n "$2" ] && [ $count -ge "$2" ] && repro:error "Timeout waiting for $1 to appear" && retval=1 && break
@@ -317,9 +317,9 @@ function repro:wait_for_file() {
 # Note: bash must be compiled with --enable-net-redirections
 function repro:wait_for_sut() {
     local count=0 msg="$1" timeout="${2:-86400}" line fd
-    repro:debug "Waiting for SUT port ${REPROMARK_PORT} to be open"
-    $REPROMARK_DYRUN && return 0
-    while ! exec {fd}<>/dev/tcp/${REPROMARK_SUT}/${REPROMARK_PORT}; do
+    repro:debug "Waiting for SUT port ${REPROCFG_PORT} to be open"
+    $REPROCFG_DYRUN && return 0
+    while ! exec {fd}<>/dev/tcp/${REPROCFG_SUT}/${REPROCFG_PORT}; do
         [ $count -ge $timeout ] && repro:error "Timeout waiting for SUT to be ready" && return 1
         sleep 1
         let count++
@@ -344,9 +344,9 @@ function repro:wait_for_ldg() {
             [ -z "$1" ] && break
             [ "$line" = "$1" ] && return 0
             repro:warn "Unexpected loadgen message: $line"
-        done < <(nc -l -p ${REPROMARK_PORT} <<<"$2")
+        done < <(nc -l -p ${REPROCFG_PORT} <<<"$2")
         $ok || {
-            repro:error "Could not read from port ${REPROMARK_PORT}"
+            repro:error "Could not read from port ${REPROCFG_PORT}"
             return 1
         }
     done
@@ -356,7 +356,7 @@ function repro:wait_for_ldg() {
 # return default steps depending on repro and mode
 function repro:default_steps() {
     local default_ops="install configure run results" modes="${REPRO_MODE:-sut ldg sup}" opsub oplist op
-    $REPROMARK_CLEANUP && default_ops+=" cleanup"
+    $REPROCFG_CLEANUP && default_ops+=" cleanup"
     [ -z "$REPRO_NAME" ] && echo $default_ops && return
     declare -F "$REPRO_NAME:default_steps:$REPRO_MODE" &>/dev/null && opsub=":$REPRO_MODE"
     declare -F "$REPRO_NAME:default_steps$opsub" &>/dev/null && "$REPRO_NAME:default_steps$opsub" && return
@@ -370,13 +370,13 @@ function repro:default_steps() {
 }
 
 function repro:run() {
-    # support "<benchmark> --help" and "--help <benchmark>"
+    # support "<workload> --help" and "--help <workload>"
     [ "${1:---help}" = --help ] && { repro:help "$2"; return; }
     REPRO_NAME="${1,,}"
     [ "${2:---help}" = --help ] && { repro:help "$1"; return; }
     REPRO_MODE="${2,,}"
 
-    REPRO_ROOT=$(realpath "$REPROMARK_ROOT/benchmarks/$REPRO_NAME")  # Note: this will be invalid in scenario mode
+    REPRO_ROOT=$(realpath "$REPROCFG_ROOT/workloads/$REPRO_NAME")  # Note: this will be invalid in scenario mode
     local loadgen_default=true support_default=true ops opargs=()
     shift 2
 
@@ -391,11 +391,11 @@ function repro:run() {
         case "$1" in
             '') : ;;
             --help) repro:help "$REPRO_NAME" && return ;;
-            --dry-run) REPROMARK_DYRUN=true ;;
-            --sut=*) REPROMARK_SUT="${1#*=}" ;;
-            --loadgen=*|--ldg=*) $loadgen_default && REPROMARK_LOADGEN="" && loadgen_default=false; REPROMARK_LOADGEN+="${1#*=} " ;;
-            --support=*|--sup=*) $support_default && REPROMARK_SUPPORT="" && support_default=false; REPROMARK_SUPPORT+="${1#*=} " ;;
-            --restart) rm -f "${REPROMARK_PERSIST_FILE}".* ;;
+            --dry-run) REPROCFG_DYRUN=true ;;
+            --sut=*) REPROCFG_SUT="${1#*=}" ;;
+            --loadgen=*|--ldg=*) $loadgen_default && REPROCFG_LOADGEN="" && loadgen_default=false; REPROCFG_LOADGEN+="${1#*=} " ;;
+            --support=*|--sup=*) $support_default && REPROCFG_SUPPORT="" && support_default=false; REPROCFG_SUPPORT+="${1#*=} " ;;
+            --restart) rm -f "${REPROCFG_PERSIST_FILE}".* ;;
             --*) opargs+=("$1") ;;
             -*) repro:fatal "Unknown option: $1" ;;
             *) break ;;
@@ -412,15 +412,15 @@ function repro:run() {
     done
 
     repro:info "Repro: $REPRO_NAME"
-    $REPROMARK_DYRUN && repro:info "Dry mode ON"
+    $REPROCFG_DYRUN && repro:info "Dry mode ON"
     repro:debug "Mode: $REPRO_MODE"
-    repro:debug "SUT: $REPROMARK_SUT"
-    [ -n "${REPROMARK_LOADGEN}" ] && repro:debug "Loadgen: ${REPROMARK_LOADGEN}"
-    [ -n "${REPROMARK_SUPPORT}" ] && repro:debug "Support: ${REPROMARK_SUPPORT}"
+    repro:debug "SUT: $REPROCFG_SUT"
+    [ -n "${REPROCFG_LOADGEN}" ] && repro:debug "Loadgen: ${REPROCFG_LOADGEN}"
+    [ -n "${REPROCFG_SUPPORT}" ] && repro:debug "Support: ${REPROCFG_SUPPORT}"
     repro:debug "Operations: ${ops[*]}"
 
     repro:check_dependencies
-    mkdir -p "${REPROMARK_TMP}" || repro:error "Could not create temporary directory ${REPROMARK_TMP}"
+    mkdir -p "${REPROCFG_TMP}" || repro:error "Could not create temporary directory ${REPROCFG_TMP}"
 
     [ -d "$REPRO_ROOT" ] && {
         repro:debug ">>> cd $REPRO_ROOT"
@@ -445,20 +445,20 @@ function repro:run() {
 }
 
 function repro:scenario() {
-    REPROMARK_SCENARIO_MODE=true
+    REPROCFG_SCENARIO_MODE=true
     repro:run scenario "$@"
 }
-REPROMARK_SCENARIO_MODE=false
+REPROCFG_SCENARIO_MODE=false
 
-function repro:include_benchmarks() {
+function repro:include_workloads() {
     for b; do
         [ -z "$b" ] && continue
-        [ -e "${REPROMARK_ROOT}/benchmarks/$b/main.sh" ] && . "${REPROMARK_ROOT}/benchmarks/$b/main.sh" || {
-            repro:error "Could not load benchmark '$b'"
+        [ -e "${REPROCFG_ROOT}/workloads/$b/main.sh" ] && . "${REPROCFG_ROOT}/workloads/$b/main.sh" || {
+            repro:error "Could not load workload '$b'"
             return 1
         }
     done
 }
 
-# Also source benchmarks provided as command line args
-repro:include_benchmarks "$@"
+# Also source workloads provided as command line args
+repro:include_workloads "$@"

@@ -17,7 +17,7 @@ proc runtimer { seconds } {
 puts "SETTING CONFIGURATION"
 dbset db mysql
 dbset bm TPC-C
-diset connection mysql_host {{ REPROMARK_SUT }}
+diset connection mysql_host {{ REPROCFG_SUT }}
 diset tpcc mysql_count_ware {{ HAMMERDB_PARAM_WH }}
 # start with VU = WH, see https://www.hammerdb.com/docs/ch04s03.html
 diset tpcc mysql_num_vu {{ HAMMERDB_PARAM_WH }}

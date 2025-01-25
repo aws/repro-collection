@@ -1,4 +1,4 @@
-# Benchmark: mysql + hammerdb
+# Workload: mysql + hammerdb
 # source this file, don't run it
 
 # test configuration
@@ -39,7 +39,7 @@ function mysql:install:sut() {
 
         #sudo rm -f /etc/mysql/my.cnf /lib/systemd/system/mysql.service
         repro:template <${REPRO_ROOT}/files/my.cnf.tmpl MYSQL_DB_MOUNTPOINT MYSQL_PORT | sudo bash -c 'cat >/etc/mysql/my.cnf'
-        repro:template <${REPRO_ROOT}/files/mysqld.service.tmpl MYSQL_MALLOC MYSQL_BINARY_PATH BENCHMARK_SCHED_POLICY BENCHMARK_SCHED_PRIORITY | sudo bash -c 'cat >/lib/systemd/system/mysql.service'
+        repro:template <${REPRO_ROOT}/files/mysqld.service.tmpl MYSQL_MALLOC MYSQL_BINARY_PATH WORKLOAD_SCHED_POLICY WORKLOAD_SCHED_PRIORITY | sudo bash -c 'cat >/lib/systemd/system/mysql.service'
         umask 022
         sudo rm -rf ${MYSQL_DB_MOUNTPOINT}/{data,tmp}
         sudo mkdir -p ${MYSQL_DB_MOUNTPOINT}/tmp
@@ -70,7 +70,7 @@ function mysql:install:sut() {
 
         # Set mysql user and password to match tcl files
         repro:wait_for_file \$(mysql_config --socket) 90
-        for host in ${REPROMARK_LOADGEN:-%}; do
+        for host in ${REPROCFG_LOADGEN:-%}; do
             sudo mysql --execute "CREATE USER '${MYSQL_USERNAME}'@'\${host}' IDENTIFIED BY '${MYSQL_PASSWORD}';"
             sudo mysql --execute "GRANT ALL PRIVILEGES ON * . * TO '${MYSQL_USERNAME}'@'\${host}';"
         done
@@ -112,7 +112,7 @@ function mysql:run:sut() {
 
 function mysql:run:loadgen() {
     repro:debug Loadgen run
-    REPROMARK_PORT=$MYSQL_PORT repro:wait_for_sut ""
+    REPROCFG_PORT=$MYSQL_PORT repro:wait_for_sut ""
     sleep 5
     repro:cmd "cd ${HAMMERDB_PATH}; ./hammerdbcli auto mysql_tpcc_run.tcl"
 }
@@ -120,7 +120,7 @@ function mysql:run:loadgen() {
 function mysql:results:loadgen() {
     repro:debug mysql:results "$@"
 
-    [ "$BENCHMARK_RESULTS_FORMAT" != json ] && repro:error "Unsupported results format: $BENCHMARK_RESULTS_FORMAT" && return 1
+    [ "$WORKLOAD_RESULTS_FORMAT" != json ] && repro:error "Unsupported results format: $WORKLOAD_RESULTS_FORMAT" && return 1
 
     # format: Vuser 1:TEST RESULT : System achieved 123456 NOPM from 456789 MySQL TPM
     local -a nopm tpm
@@ -156,9 +156,9 @@ function mysql:results:loadgen() {
             echo "${!var}]," | sed 's/ /,/g'
         done
         echo "}"
-    } >${BENCHMARK_RESULTS_FILE}
-    repro:info "Results written to $(realpath "${BENCHMARK_RESULTS_FILE}")"
-    repro:info "Benchmark score: ${nopm[@]}"
+    } >${WORKLOAD_RESULTS_FILE}
+    repro:info "Results written to $(realpath "${WORKLOAD_RESULTS_FILE}")"
+    repro:info "Test score: ${nopm[@]}"
 }
 
 function mysql:cleanup:sut() {
@@ -213,10 +213,10 @@ function mysql:create_and_mount_raid() {
 
 function mysql:help() {
     echo "Runs a mysql + hammerdb test. Hosts required: 1 SUT and 1 loadgen."
-    echo "Results are measured on the loadgen and written to ${BENCHMARK_RESULTS_FILE}."
+    echo "Results are measured on the loadgen and written to ${WORKLOAD_RESULTS_FILE}."
     echo "Recommended: 2+ fast (NVME) disks on the SUT to be used for a RAID0 array mounted on ${MYSQL_DB_MOUNTPOINT}."
     echo "If the mount is not active:"
-    echo " - the benchmark will attempt to find available disks to create and format a RAID0 array;"
+    echo " - the workload will attempt to find available disks to create and format a RAID0 array;"
     echo " - if a RAID0 array is already created and not mounted, it will be mounted and used as is (not formatted)."
-    echo "Note: occasionally, the HammerDB virtual users fail to shut down in time, and as a result the latency measurements are empty. The recommended recourse is rerunning the benchmark."
+    echo "Known issue: occasionally, the HammerDB virtual users fail to shut down in time, and as a result the latency measurements are empty (but the score is valid). The recommended recourse is rerunning the workload."
 }

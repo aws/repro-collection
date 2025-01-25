@@ -10,8 +10,8 @@ function scenario:help()
     echo "                In order to better compare to 6.5, all other kernels also need to use CONFIG_HZ_250=y"
     echo "Repro steps:"
     echo "  1. Create 1 SUT and 1 LDG instance, running e.g. Ubuntu 22.04, with a default user that has sudo access."
-    echo "  2. Create a RAID array on the SUT to use for the database. The benchmark will attempt to mount the first /dev/md<N> it finds under ${MYSQL_DB_MOUNTPOINT} (this step is optional)."
-    echo "  3. Configure the SUT to accept TCP connections on ports ${MYSQL_PORT} and ${REPROMARK_PORT} from the LDG."
+    echo "  2. Create a RAID array on the SUT to use for the database. The workload will attempt to mount the first /dev/md<N> it finds under ${MYSQL_DB_MOUNTPOINT} (this step is optional)."
+    echo "  3. Configure the SUT to accept TCP connections on ports ${MYSQL_PORT} and ${REPROCFG_PORT} from the LDG."
     echo "  4. Start the repro scenario on the SUT and LDG in parallel:"
     echo "    3a. On the SUT, run: repro.sh ${SCENARIO_NAME} SUT --ldg=<LDG_address>"
     echo "    3b. On the LDG, run: repro.sh ${SCENARIO_NAME} LDG --sut=<LDG_address>"
@@ -22,7 +22,7 @@ function scenario:help()
     echo "  7. Terminate the SUT and LDG instances."
 }
 
-function scenario:benchmarks() {
+function scenario:workloads() {
     echo "mysql"
 }
 
@@ -32,8 +32,8 @@ function scenario:build_kernel() {
     shift
     local build_args="CONFIG_SCHED_DEBUG=y CONFIG_PROC_SYSCTL=y CONFIG_SYSCTL=y"
     build_args+=" CONFIG_HZ_100= CONFIG_HZ_250=y CONFIG_HZ_300= CONFIG_HZ_1000= CONFIG_HZ=250 $*"
-    pushd ${REPROMARK_TMP}
-    repro:cmd ${REPROMARK_ROOT}/util/kernel_from_src.sh --install --version=$tag $build_args
+    pushd ${REPROCFG_TMP}
+    repro:cmd ${REPROCFG_ROOT}/util/kernel_from_src.sh --install --version=$tag $build_args
     popd
 }
 
@@ -53,13 +53,13 @@ function scenario:require_kernel() {
     repro:fatal "$msg"
 }
 
-# run one mysql test; args: <title> <data_label> <kernel_version> [scheduler_policy] [scheduler_feature [...]] [-- benchmark_args]
+# run one mysql test; args: <title> <data_label> <kernel_version> [scheduler_policy] [scheduler_feature [...]] [-- workload_args]
 function scenario:run_mysql()
 {
     repro:info "MySQL on $1"
     scenario:require_kernel "$3"
     repro:wait_for_ldg "STEP" "$2"
-    export BENCHMARK_SCHED_POLICY="${4:-SCHED_OTHER}"
+    export WORKLOAD_SCHED_POLICY="${4:-SCHED_OTHER}"
     shift 3 # shift 4 will do nothing if the optional 4th argument is missing
     shift
     local feature
@@ -109,8 +109,8 @@ function scenario:run:loadgen()
     while true; do
         tag=$(repro:wait_for_sut "STEP")
         [ "${tag:-DONE}" = "DONE" ] && break
-        repro:info "Running $tag benchmarking"
-        BENCHMARK_RESULTS_FILE="${SCENARIO_RESULTS_PATH}/results-${tag}.json" repro:run mysql LDG "$@"
+        repro:info "Running $tag test"
+        WORKLOAD_RESULTS_FILE="${SCENARIO_RESULTS_PATH}/results-${tag}.json" repro:run mysql LDG "$@"
     done
 
     for r in "${SCENARIO_RESULTS_PATH}"/results-*.json; do
