@@ -18,7 +18,7 @@ kernel_ppa_repo="$2"
 
 echo Existing kernel: $(uname -r)
 
-[ $CPU = aarch64 -o $HOSTTYPE = aarch64 ] && arch=arm64 || arch=x86
+[ "$CPU" = aarch64 -o "$HOSTTYPE" = aarch64 ] && arch=arm64 || arch=x86
 
 [ -z $kernel_ppa_repo ] && {
     . /etc/os-release

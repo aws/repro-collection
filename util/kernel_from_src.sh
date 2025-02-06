@@ -78,7 +78,7 @@ done
 
 make olddefconfig
 time make -j $(nproc) LOCALVERSION=-$(git rev-parse --short HEAD)
-[ $CPU = aarch64 -o $HOSTTYPE = aarch64 ] && arch=arm64 || arch=x86
+[ "$CPU" = aarch64 -o "$HOSTTYPE" = aarch64 ] && arch=arm64 || arch=x86
 ls -l arch/$arch/boot/*Image*
 
 $install_kernel && {
