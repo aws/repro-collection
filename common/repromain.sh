@@ -26,9 +26,6 @@ shopt -s dotglob expand_aliases extglob globstar nullglob xpg_echo
 : ${WORKLOAD_RESULTS_FORMAT:=json} # json, csv, txt (as supported by the workload)
 : ${WORKLOAD_SCHED_POLICY:=other} # other, batch, idle, fifo, rr
 : ${WORKLOAD_SCHED_PRIORITY:=1}
-WORKLOAD_SCHED_POLICY=${WORKLOAD_SCHED_POLICY,,}
-WORKLOAD_SCHED_POLICY=${WORKLOAD_SCHED_POLICY//sched_} # also accept SCHED_OTHER etc
-[ "$WORKLOAD_SCHED_POLICY" != "fifo" -a "$WORKLOAD_SCHED_POLICY" != "rr" ] && WORKLOAD_SCHED_PRIORITY=0
 
 # logging
 exec 3>&1
@@ -369,6 +366,20 @@ function repro:default_steps() {
     echo $oplist
 }
 
+
+# things that need to be done every time before running a workload
+# this will potentially be run multiple times if in scenario mode
+function repro:preflight() {
+    repro:debug "Running preflight tasks"
+    repro:check_dependencies
+
+    mkdir -p "${REPROCFG_TMP}" || repro:error "Could not create temporary directory ${REPROCFG_TMP}"
+
+    WORKLOAD_SCHED_POLICY=${WORKLOAD_SCHED_POLICY,,}
+    WORKLOAD_SCHED_POLICY=${WORKLOAD_SCHED_POLICY//sched_} # also accept SCHED_OTHER etc
+    [ "$WORKLOAD_SCHED_POLICY" != "fifo" -a "$WORKLOAD_SCHED_POLICY" != "rr" ] && WORKLOAD_SCHED_PRIORITY=0
+}
+
 function repro:run() {
     # support "<workload> --help" and "--help <workload>"
     [ "${1:---help}" = --help ] && { repro:help "$2"; return; }
@@ -419,8 +430,7 @@ function repro:run() {
     [ -n "${REPROCFG_SUPPORT}" ] && repro:debug "Support: ${REPROCFG_SUPPORT}"
     repro:debug "Operations: ${ops[*]}"
 
-    repro:check_dependencies
-    mkdir -p "${REPROCFG_TMP}" || repro:error "Could not create temporary directory ${REPROCFG_TMP}"
+    repro:preflight
 
     [ -d "$REPRO_ROOT" ] && {
         repro:debug ">>> cd $REPRO_ROOT"
