@@ -88,7 +88,7 @@ $install_kernel && {
     gitrev=$(git rev-parse --short HEAD)
     shopt -s nullglob
     ls -l /boot/*-$gitrev*
-    for kernel in /boot/vmlinu*-$gitrev /boot/vmlinu*-${gitrev}.gz /boot/Image*-$gitrev /boot/Image*-$gitrev.gz; do break; done
+    for kernel in /boot/vmlinu*-$gitrev /boot/vmlinu*-${gitrev}.gz /boot/Image*-$gitrev /boot/Image*-$gitrev.gz $(realpath /boot/vmlinuz); do break; done
     [ -z "$kernel" ] && {
         echo >&2 "Can't find /boot/vmlinu*-$gitrev, copying manually"
         version_name=${LINUX_TAG:-default}-$gitrev
@@ -102,6 +102,7 @@ $install_kernel && {
         echo >&2 "Check that the entry in /boot/loader/entries/ matches the initramfs file name!"
     }
     sudo chmod +x $kernel
+    ls -l $kernel
     if [ -n "$(sudo bash -c 'type -t grub2-mkconfig')" ]; then
         sudo grub2-mkconfig -o /boot/grub2/grub.cfg
         [ -z "$(sudo bash -c 'type -t grubby')" ] && {
