@@ -13,13 +13,17 @@ function scenario:help()
     echo "  2. Create a RAID array on the SUT to use for the database. The workload will attempt to mount the first /dev/md<N> it finds under ${MYSQL_DB_MOUNTPOINT} (this step is optional)."
     echo "  3. Configure the SUT to accept TCP connections on ports ${MYSQL_PORT} and ${REPROCFG_PORT} from the LDG."
     echo "  4. Start the repro scenario on the SUT and LDG in parallel:"
-    echo "    3a. On the SUT, run: repro.sh ${SCENARIO_NAME} SUT --ldg=<LDG_address>"
-    echo "    3b. On the LDG, run: repro.sh ${SCENARIO_NAME} LDG --sut=<LDG_address>"
+    echo "    4a. On the SUT, run: repro.sh ${SCENARIO_NAME} SUT --ldg=<LDG_address>"
+    echo "    4b. On the LDG, run: repro.sh ${SCENARIO_NAME} LDG --sut=<LDG_address>"
     echo "  5. The SUT will stop whenever a different kernel version is required."
     echo "     The kernel should install automatically for you. If it fails, replace it manually before proceeding."
-    echo "     Next, reboot the SUT to activate the new kernel version, then rerun the (3a) step to continue the scenario."
+    echo "     Next, reboot the SUT to activate the new kernel version, then rerun the (4a) step to continue the scenario."
     echo "  6. The LDG will collect all results and print a report when all the tests are finished."
     echo "  7. Terminate the SUT and LDG instances."
+    echo
+    echo "To run a single test, replace step 4a with (please note the quoted final argument):"
+    echo "  repro.sh ${SCENARIO_NAME} SUT --ldg=<LDG_IP_ADDRESS> run_mysql --\"<title> <LDG_output_file_label> <kernel_version> <sched_policy> <sched_feature [...]>\""
+    echo "  E.g: repro.sh ${SCENARIO_NAME} SUT --ldg=1.2.3.4 run_mysql --\"Manual_run my_k6.12 6.12 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY\""
 }
 
 function scenario:workloads() {

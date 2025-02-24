@@ -19,7 +19,8 @@ A notable limitation is that the Repro Framework does not fully handle reboot wo
 
 ### 1.3 Assumptions
 
-All machines involved in running repros are assumed to be "throw-away" test grade. For this reason, no effort is made to secure, conceal, verify, or otherwise harden data, communications, or APIs.
+The Repro Framework aims to automate exactly what you would manually run given pre-configured SUT/LDG machines, and nothing more. 
+In other words: all machines involved in running repros are assumed to be "throw-away" test grade. No effort is made to secure, conceal, verify, or otherwise harden data, communications, or APIs.
 
 In particular, this means:
 * data on the machines has no real world value and can/will be discarded and/or recreated at will;
@@ -46,7 +47,7 @@ The repository consists of workloads identified with a unique name (each placed 
 
 ## 2. How To Run
 
-Running a simple SUT-only workload is as simple as `run.sh workload_name SUT`.
+Running a simple SUT-only workload can be as simple as `run.sh workload_name SUT`.
 
 Runtime parameters are configured via environment variables which can be modified before running `run.sh`. For convenience, a few parameters (`--dry-run`, `--sut=`, `--loadgen=`, `--support=`) are also available via command line arguments.
 
