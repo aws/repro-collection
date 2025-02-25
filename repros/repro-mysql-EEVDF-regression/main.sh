@@ -45,7 +45,7 @@ function scenario:build_kernel() {
 function scenario:require_kernel() {
     local msg kernel="$(uname -r)"
     repro:info "Current kernel: $kernel"
-    [[ ! "$kernel" =~ ^${1}[0-9] ]] && [[ "$kernel" =~ ^${1} ]] && return 0
+    [[ ! "$kernel" =~ ^${1}[0-9] ]] && [[ "$kernel" =~ ^${1} || "$kernel" =~ ^${1/-/.*-} ]] && return 0
     repro:info "Looking for kernel: $1"
     if $SCENARIO_AUTOBUILD_KERNELS; then
         scenario:build_kernel v"$@"
@@ -85,8 +85,11 @@ function scenario:run:sut()
         #repro:cmd sudo apt-get purge flash-kernel -y
 
         scenario:run_mysql "MySQL on default kernel 6.5" k6.5 6.5
+        scenario:run_mysql "MySQL on kernel 6.5 SCHED_BATCH" k6.5-batch 6.5 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
 
         scenario:run_mysql "MySQL on default kernel 6.6" k6.6 6.6
+        scenario:run_mysql "MySQL on kernel 6.6 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.6-NOx2 6.6 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
+        scenario:run_mysql "MySQL on kernel 6.6 SCHED_BATCH" k6.6-batch 6.6 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
 
         scenario:run_mysql "MySQL on default kernel 6.8" k6.8 6.8 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
         scenario:run_mysql "MySQL on kernel 6.8 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.8-NOx2 6.8 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
@@ -99,6 +102,10 @@ function scenario:run:sut()
         scenario:run_mysql "MySQL on default kernel 6.13" k6.13 6.13 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
         scenario:run_mysql "MySQL on kernel 6.13 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.13-NOx2 6.13 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
         scenario:run_mysql "MySQL on kernel 6.13 SCHED_BATCH" k6.13-batch 6.13 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
+
+        scenario:run_mysql "MySQL on default kernel 6.14-rc4" k6.14-rc4 6.14-rc4 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
+        scenario:run_mysql "MySQL on kernel 6.14-rc4 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.14-NOx2 6.14-rc4 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
+        scenario:run_mysql "MySQL on kernel 6.14-rc4 SCHED_BATCH" k6.14-batch 6.14-rc4 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
 
         repro:wait_for_ldg "STEP" "DONE"
         repro:info "Done"
