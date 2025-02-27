@@ -48,7 +48,7 @@ echo "Linux dir: $LINUX_DIR"
 [ -f "$LINUX_DIR/Kconfig" ] || {
     [ -z "$LINUX_REPO" ] && {
         $use_suse_repo && [ -f /etc/os-release ] && grep -q SUSE /etc/os-release && LINUX_REPO=https://github.com/SUSE/kernel || \
-        LINUX_REPO=https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+        LINUX_REPO=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
     }
     echo "Linux repo: $LINUX_REPO"
     git clone "$LINUX_REPO" "$LINUX_DIR"
