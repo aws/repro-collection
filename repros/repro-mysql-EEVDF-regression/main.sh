@@ -4,6 +4,7 @@
 : ${SCENARIO_AUTOBUILD_KERNELS:=true}        # automatically build kernel as needed (otherwise, just warn and allow user to build manually)
 : ${SCENARIO_SKIP_BUILD_ACTIVE_KERNEL:=true} # skip kernel build step when the active kernel matches the required version (the AUTOBUILD flag is also respected no matter what)
 : ${SCENARIO_REUSE_BUILT_KERNELS:=true}      # if the required kernel version was built before, reuse it (this will cause wrong results if testing the same kernel multiple times but with different config options)
+: ${SCENARIO_BASELINE:=6.5.13}               # kernel version to use as baseline when printing final results
 
 function scenario:help()
 {
@@ -177,9 +178,18 @@ function scenario:run:loadgen()
         repro:info "Running $tag test"
         WORKLOAD_RESULTS_FILE="${SCENARIO_RESULTS_PATH}/results-${tag}.json" repro:run mysql LDG "$@"
     done
+}
 
-    for r in "${SCENARIO_RESULTS_PATH}"/results-*.json; do
-        repro:info "Results for $r"
+function scenario:results:loadgen()
+{
+    cd "${SCENARIO_RESULTS_PATH}"
+    repro:info "Results: ${SCENARIO_RESULTS_PATH}/results-k*.json"
+
+    for r in results-*.json; do
+        repro:info "Results for $(basename "${r#*-}" .json)"
         repro:cmd cat "$r"
     done
+
+    repro:cmd "${SCENARIO_PATH}/report.py" "${SCENARIO_BASELINE}-default" results-k6.{5,6,8,1}*-[^b]*.json
+    repro:cmd "${SCENARIO_PATH}/report.py" "${SCENARIO_BASELINE}-batch" results-k6.{5,6,8,1}*-batch*.json
 }
