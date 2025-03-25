@@ -37,7 +37,7 @@ function scenario:build_kernel() {
     local build_args="CONFIG_SCHED_DEBUG=y CONFIG_PROC_SYSCTL=y CONFIG_SYSCTL=y"
     build_args+=" CONFIG_HZ_100= CONFIG_HZ_250=y CONFIG_HZ_300= CONFIG_HZ_1000= CONFIG_HZ=250 $*"
     pushd ${REPROCFG_TMP}
-    repro:cmd ${REPROCFG_ROOT}/util/kernel_from_src.sh --install --version=$tag $build_args
+    repro:cmd ${REPROCFG_ROOT}/util/kernel_from_src.sh --install --version=$tag "--patch-dir=${SCENARIO_PATH}/patches" $build_args
     popd
 }
 
@@ -62,7 +62,8 @@ function scenario:run_mysql()
 {
     repro:info "MySQL on $1"
     scenario:require_kernel "$3"
-    repro:wait_for_ldg "STEP" "$2"
+    local label="$2"
+    repro:wait_for_ldg "STEP" "${label}"
     export WORKLOAD_SCHED_POLICY="${4:-SCHED_OTHER}"
     shift 3 # shift 4 will do nothing if the optional 4th argument is missing
     shift
@@ -72,12 +73,29 @@ function scenario:run_mysql()
         [ "$feature" = "--" ] && break
         repro:cmd sudo bash -c "'echo $feature >/sys/kernel/debug/sched/features'"
     done
+    repro:info "Starting perf sched stats with wait=${SCENARIO_PERF_WAIT} and duration=${SCENARIO_PERF_DURATION}"
+    {
+        sleep ${SCENARIO_PERF_WAIT}
+        cp /proc/schedstat "schedstat-${label}-before"
+        sleep ${SCENARIO_PERF_DURATION}
+        cp /proc/schedstat "schedstat-${label}-after"
+    }&
+    {
+        sleep ${SCENARIO_PERF_WAIT}
+        repro:cmd sudo perf sched stats record "--output=perf-${label}.data" -- sleep ${SCENARIO_PERF_DURATION}
+        sudo chown $USER "perf-${label}.data"
+    }&
     repro:run mysql SUT "$@"
 }
 
 # run all the test cases in sequence; if needed, build+install required kernel version and wait for manual reboot
 function scenario:run:sut()
 {
+    # these can't be defined at the top of the file, because they depend on workload variables,
+    # which are only initialized after this file is sourced
+    : ${SCENARIO_PERF_WAIT:=$((60 * HAMMERDB_PARAM_RAMPUP_MIN * 2))}
+    : ${SCENARIO_PERF_DURATION:=$((60 * HAMMERDB_PARAM_DURATION_MIN / 2))}
+
     repro:persistent_steps ${SCENARIO_NAME} <<-EOT
         repro:package:update
         # Removing cryptsetup to avoid "couldn't resolve device /dev/root" errors with custom kernel builds

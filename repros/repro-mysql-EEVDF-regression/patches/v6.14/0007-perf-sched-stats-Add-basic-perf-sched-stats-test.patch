@@ -1,0 +1,86 @@
+From 45bfa99f74f7510f468748dd065b5e3e68baa45c Mon Sep 17 00:00:00 2001
+From: Swapnil Sapkal <swapnil.sapkal@amd.com>
+Date: Tue, 11 Mar 2025 12:02:29 +0000
+Subject: [PATCH 7/8] perf sched stats: Add basic perf sched stats test
+
+Add basic test for perf sched stats {record|report|diff} subcommand.
+
+Signed-off-by: Swapnil Sapkal <swapnil.sapkal@amd.com>
+---
+ tools/perf/tests/shell/perf_sched_stats.sh | 64 ++++++++++++++++++++++
+ 1 file changed, 64 insertions(+)
+ create mode 100755 tools/perf/tests/shell/perf_sched_stats.sh
+
+diff --git a/tools/perf/tests/shell/perf_sched_stats.sh b/tools/perf/tests/shell/perf_sched_stats.sh
+new file mode 100755
+index 000000000000..ddc926f50129
+--- /dev/null
++++ b/tools/perf/tests/shell/perf_sched_stats.sh
+@@ -0,0 +1,64 @@
++#!/bin/sh
++# perf sched stats tests
++# SPDX-License-Identifier: GPL-2.0
++
++set -e
++
++err=0
++test_perf_sched_stats_record() {
++  echo "Basic perf sched stats record test"
++  if ! perf sched stats record true 2>&1 | \
++    grep -E -q "[ perf sched stats: Wrote samples to perf.data ]"
++  then
++    echo "Basic perf sched stats record test [Failed]"
++    err=1
++    return
++  fi
++  echo "Basic perf sched stats record test [Success]"
++}
++
++test_perf_sched_stats_report() {
++  echo "Basic perf sched stats report test"
++  perf sched stats record true > /dev/null
++  if ! perf sched stats report 2>&1 | grep -E -q "Columns description"
++  then
++    echo "Basic perf sched stats report test [Failed]"
++    err=1
++    rm perf.data
++    return
++  fi
++  rm perf.data
++  echo "Basic perf sched stats report test [Success]"
++}
++
++test_perf_sched_stats_live() {
++  echo "Basic perf sched stats live mode test"
++  if ! perf sched stats true 2>&1 | grep -E -q "Columns description"
++  then
++    echo "Basic perf sched stats live mode test [Failed]"
++    err=1
++    return
++  fi
++  echo "Basic perf sched stats live mode test [Success]"
++}
++
++test_perf_sched_stats_diff() {
++  echo "Basic perf sched stats diff test"
++  perf sched stats record true > /dev/null
++  perf sched stats record true > /dev/null
++  if ! perf sched stats diff > /dev/null
++  then
++    echo "Basic perf sched stats diff test [Failed]"
++    err=1
++    rm perf.data.old perf.data
++    return
++  fi
++  rm perf.data.old perf.data
++  echo "Basic perf sched stats diff test [Success]"
++}
++
++test_perf_sched_stats_record
++test_perf_sched_stats_report
++test_perf_sched_stats_live
++test_perf_sched_stats_diff
++exit $err
+-- 
+2.34.1
+

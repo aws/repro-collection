@@ -15,6 +15,7 @@ while [ $# -gt 0 ]; do
         --path=*) LINUX_DIR="${1#*=}";;
         --repo=*) LINUX_REPO="${1#*=}";;
         --version=*) LINUX_TAG="${1#*=}";;
+        --patch-dir=*) LINUX_PATCHDIR="${1#*=}";;
         --) shift; break;;
         --*) echo "Unknown argument: $1"; exit 1;;
         *) break;;
@@ -25,7 +26,8 @@ done
 if type -t apt-get >/dev/null; then
     sudo apt-get update -y
     sudo apt-get upgrade -y
-    sudo apt-get -y install build-essential flex bison fakeroot ncurses-dev xz-utils libssl-dev bc libelf-dev
+    sudo apt-get -y install build-essential flex bison fakeroot ncurses-dev xz-utils libssl-dev bc libelf-dev python3 python3-dev pkg-config
+    sudo apt-get -y install dwarves libdwarf-dev libdw-dev binutils-dev libcap-dev libelf-dev libnuma-dev libssl-dev libunwind-dev zlib1g-dev liblzma-dev libaio-dev libtraceevent-dev debuginfod libpfm4-dev libslang2-dev systemtap-sdt-dev libperl-dev libbabeltrace-dev libiberty-dev libzstd-dev libzstd1
 elif type -t zypper >/dev/null; then
     sudo zypper --non-interactive update
     sudo zypper --non-interactive install -y -t pattern devel_basis  && \
@@ -60,6 +62,14 @@ cd "$LINUX_DIR"
     git fetch origin "$LINUX_TAG" || { echo >&2 "Linux version not found: $LINUX_TAG"; exit 1; }
     git reset --hard FETCH_HEAD
 }
+[ -n "$LINUX_PATCHDIR" ] && {
+    echo "Linux patch dir: $LINUX_PATCHDIR"
+    for patch in "$LINUX_PATCHDIR/$LINUX_TAG"/*.patch; do
+        echo
+        echo "Applying patch: $patch"
+        git am -3 --ignore-space-change --ignore-whitespace "$patch" || git am --abort
+    done
+}
 
 cp -v /boot/config-$(uname -r) .config
 type -t ec2metadata >/dev/null || type -t ec2-metadata >/dev/null && {
@@ -78,6 +88,7 @@ done
 
 make olddefconfig
 time make -j $(nproc) LOCALVERSION=-$(git rev-parse --short HEAD)
+make EXTRA_CFLAGS=-Wno-maybe-uninitialized clean all -j $(nproc) -C tools/perf
 [ "$CPU" = aarch64 -o "$HOSTTYPE" = aarch64 ] && arch=arm64 || arch=x86
 ls -l arch/$arch/boot/*Image*
 
@@ -85,6 +96,7 @@ $install_kernel && {
     echo "Installing kernel..."
     sudo make modules_install -j $(nproc)
     sudo make install -j $(nproc)
+    sudo cp tools/perf/perf /usr/local/bin/
     gitrev=$(git rev-parse --short HEAD)
     shopt -s nullglob
     ls -l /boot/*-$gitrev*
@@ -117,9 +129,10 @@ $install_kernel && {
                 sudo zypper --non-interactive install -y popt-devel
                 grbdir=/tmp/grubby.$$
                 git clone https://github.com/rhboot/grubby "$grbdir"
-                cd "$grbdir"
+                pushd "$grbdir"
                 make grubby
                 sudo cp -v grubby /usr/sbin/
+                popd
                 rm -rf "$grbdir"
             )
         }

@@ -1,0 +1,183 @@
+From ae2587bece2e81c22e2d671d912916f757dbd748 Mon Sep 17 00:00:00 2001
+From: Ian Rogers <irogers@google.com>
+Date: Mon, 27 Nov 2023 14:08:16 -0800
+Subject: [PATCH 1/2] tools api fs: Switch filename__read_str to use io.h
+
+filename__read_str() has its own string reading code that allocates
+memory before reading into it. The memory allocated is sized at BUFSIZ
+that is 8kb. Most strings are short and so most of this 8kb is wasted.
+
+Refactor io__getline(), as io__getdelim(), so that the newline character
+can be configurable and ignored in the case of filename__read_str().
+
+Code like build_caches_for_cpu() in perf's header.c will read many strings
+and hold them in a data structure, in this case multiple strings per
+cache level per CPU.
+
+Using io.h's io__getline() avoids the wasted memory as strings are
+temporarily read into a buffer on the stack before being copied to a
+buffer that grows 128 bytes at a time and is never sized larger than the
+string.
+
+For a 16 hyperthread system the memory consumption of "perf record
+true" is reduced by 180kb, primarily through saving memory when
+reading the cache information.
+
+Signed-off-by: Ian Rogers <irogers@google.com>
+Acked-by: Namhyung Kim <namhyung@kernel.org>
+Cc: Adrian Hunter <adrian.hunter@intel.com>
+Cc: Alexander Shishkin <alexander.shishkin@linux.intel.com>
+Cc: Andi Kleen <ak@linux.intel.com>
+Cc: Athira Jajeev <atrajeev@linux.vnet.ibm.com>
+Cc: Changbin Du <changbin.du@huawei.com>
+Cc: Colin Ian King <colin.i.king@gmail.com>
+Cc: Dmitrii Dolgov <9erthalion6@gmail.com>
+Cc: German Gomez <german.gomez@arm.com>
+Cc: Guilherme Amadio <amadio@gentoo.org>
+Cc: Huacai Chen <chenhuacai@kernel.org>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: James Clark <james.clark@arm.com>
+Cc: Jiri Olsa <jolsa@kernel.org>
+Cc: K Prateek Nayak <kprateek.nayak@amd.com>
+Cc: Kajol Jain <kjain@linux.ibm.com>
+Cc: Kan Liang <kan.liang@linux.intel.com>
+Cc: Leo Yan <leo.yan@linaro.org>
+Cc: Li Dong <lidong@vivo.com>
+Cc: Liam Howlett <liam.howlett@oracle.com>
+Cc: Mark Rutland <mark.rutland@arm.com>
+Cc: Masami Hiramatsu (Google) <mhiramat@kernel.org>
+Cc: Miguel Ojeda <ojeda@kernel.org>
+Cc: Ming Wang <wangming01@loongson.cn>
+Cc: Nick Terrell <terrelln@fb.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Ravi Bangoria <ravi.bangoria@amd.com>
+Cc: Sandipan Das <sandipan.das@amd.com>
+Cc: Sean Christopherson <seanjc@google.com>
+Cc: Steinar H. Gunderson <sesse@google.com>
+Cc: Vincent Whitchurch <vincent.whitchurch@axis.com>
+Cc: Wenyu Liu <liuwenyu7@huawei.com>
+Cc: Yang Jihong <yangjihong1@huawei.com>
+Link: https://lore.kernel.org/r/20231127220902.1315692-5-irogers@google.com
+Signed-off-by: Arnaldo Carvalho de Melo <acme@redhat.com>
+---
+ tools/lib/api/fs/fs.c | 56 +++++++++++--------------------------------
+ tools/lib/api/io.h    | 11 ++++++---
+ 2 files changed, 22 insertions(+), 45 deletions(-)
+
+diff --git a/tools/lib/api/fs/fs.c b/tools/lib/api/fs/fs.c
+index 5cb0eeec2c8a..004f2af5504b 100644
+--- a/tools/lib/api/fs/fs.c
++++ b/tools/lib/api/fs/fs.c
+@@ -16,6 +16,7 @@
+ #include <sys/mount.h>
+ 
+ #include "fs.h"
++#include "../io.h"
+ #include "debug-internal.h"
+ 
+ #define _STR(x) #x
+@@ -344,53 +345,24 @@ int filename__read_ull(const char *filename, unsigned long long *value)
+ 	return filename__read_ull_base(filename, value, 0);
+ }
+ 
+-#define STRERR_BUFSIZE  128     /* For the buffer size of strerror_r */
+-
+ int filename__read_str(const char *filename, char **buf, size_t *sizep)
+ {
+-	size_t size = 0, alloc_size = 0;
+-	void *bf = NULL, *nbf;
+-	int fd, n, err = 0;
+-	char sbuf[STRERR_BUFSIZE];
++	struct io io;
++	char bf[128];
++	int err;
+ 
+-	fd = open(filename, O_RDONLY);
+-	if (fd < 0)
++	io.fd = open(filename, O_RDONLY);
++	if (io.fd < 0)
+ 		return -errno;
+-
+-	do {
+-		if (size == alloc_size) {
+-			alloc_size += BUFSIZ;
+-			nbf = realloc(bf, alloc_size);
+-			if (!nbf) {
+-				err = -ENOMEM;
+-				break;
+-			}
+-
+-			bf = nbf;
+-		}
+-
+-		n = read(fd, bf + size, alloc_size - size);
+-		if (n < 0) {
+-			if (size) {
+-				pr_warn("read failed %d: %s\n", errno,
+-					strerror_r(errno, sbuf, sizeof(sbuf)));
+-				err = 0;
+-			} else
+-				err = -errno;
+-
+-			break;
+-		}
+-
+-		size += n;
+-	} while (n > 0);
+-
+-	if (!err) {
+-		*sizep = size;
+-		*buf   = bf;
++	io__init(&io, io.fd, bf, sizeof(bf));
++	*buf = NULL;
++	err = io__getdelim(&io, buf, sizep, /*delim=*/-1);
++	if (err < 0) {
++		free(*buf);
++		*buf = NULL;
+ 	} else
+-		free(bf);
+-
+-	close(fd);
++		err = 0;
++	close(io.fd);
+ 	return err;
+ }
+ 
+diff --git a/tools/lib/api/io.h b/tools/lib/api/io.h
+index 9fc429d2852d..e63f8f32f82c 100644
+--- a/tools/lib/api/io.h
++++ b/tools/lib/api/io.h
+@@ -140,8 +140,8 @@ static inline int io__get_dec(struct io *io, __u64 *dec)
+ 	}
+ }
+ 
+-/* Read up to and including the first newline following the pattern of getline. */
+-static inline ssize_t io__getline(struct io *io, char **line_out, size_t *line_len_out)
++/* Read up to and including the first delim. */
++static inline ssize_t io__getdelim(struct io *io, char **line_out, size_t *line_len_out, int delim)
+ {
+ 	char buf[128];
+ 	int buf_pos = 0;
+@@ -151,7 +151,7 @@ static inline ssize_t io__getline(struct io *io, char **line_out, size_t *line_l
+ 
+ 	/* TODO: reuse previously allocated memory. */
+ 	free(*line_out);
+-	while (ch != '\n') {
++	while (ch != delim) {
+ 		ch = io__get_char(io);
+ 
+ 		if (ch < 0)
+@@ -183,4 +183,9 @@ static inline ssize_t io__getline(struct io *io, char **line_out, size_t *line_l
+ 	return -ENOMEM;
+ }
+ 
++static inline ssize_t io__getline(struct io *io, char **line_out, size_t *line_len_out)
++{
++	return io__getdelim(io, line_out, line_len_out, /*delim=*/'\n');
++}
++
+ #endif /* __API_IO__ */
+-- 
+2.34.1
+

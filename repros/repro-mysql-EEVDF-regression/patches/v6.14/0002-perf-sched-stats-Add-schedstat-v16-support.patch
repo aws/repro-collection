@@ -1,0 +1,194 @@
+From 080cad746794980763f9c4d23bece890561f11f4 Mon Sep 17 00:00:00 2001
+From: Swapnil Sapkal <swapnil.sapkal@amd.com>
+Date: Tue, 11 Mar 2025 12:02:24 +0000
+Subject: [PATCH 2/8] perf sched stats: Add schedstat v16 support
+
+/proc/schedstat file output is standardized with version number.
+Add support to record and raw dump v16 version layout.
+
+Co-developed-by: Ravi Bangoria <ravi.bangoria@amd.com>
+Signed-off-by: Ravi Bangoria <ravi.bangoria@amd.com>
+Tested-by: James Clark <james.clark@linaro.org>
+Signed-off-by: Swapnil Sapkal <swapnil.sapkal@amd.com>
+---
+ tools/lib/perf/Makefile                     |  2 +-
+ tools/lib/perf/include/perf/event.h         | 14 ++++++
+ tools/lib/perf/include/perf/schedstat-v16.h | 52 +++++++++++++++++++++
+ tools/perf/util/event.c                     |  6 +++
+ tools/perf/util/synthetic-events.c          |  6 +++
+ 5 files changed, 79 insertions(+), 1 deletion(-)
+ create mode 100644 tools/lib/perf/include/perf/schedstat-v16.h
+
+diff --git a/tools/lib/perf/Makefile b/tools/lib/perf/Makefile
+index 4b60804aa0b6..d0506a13a97f 100644
+--- a/tools/lib/perf/Makefile
++++ b/tools/lib/perf/Makefile
+@@ -174,7 +174,7 @@ install_lib: libs
+ 		$(call do_install_mkdir,$(libdir_SQ)); \
+ 		cp -fpR $(LIBPERF_ALL) $(DESTDIR)$(libdir_SQ)
+ 
+-HDRS := bpf_perf.h core.h cpumap.h threadmap.h evlist.h evsel.h event.h mmap.h schedstat-v15.h
++HDRS := bpf_perf.h core.h cpumap.h threadmap.h evlist.h evsel.h event.h mmap.h schedstat-v15.h schedstat-v16.h
+ INTERNAL_HDRS := cpumap.h evlist.h evsel.h lib.h mmap.h rc_check.h threadmap.h xyarray.h
+ 
+ INSTALL_HDRS_PFX := $(DESTDIR)$(prefix)/include/perf
+diff --git a/tools/lib/perf/include/perf/event.h b/tools/lib/perf/include/perf/event.h
+index 189106874063..8ef70799e070 100644
+--- a/tools/lib/perf/include/perf/event.h
++++ b/tools/lib/perf/include/perf/event.h
+@@ -463,11 +463,18 @@ struct perf_record_schedstat_cpu_v15 {
+ #undef CPU_FIELD
+ };
+ 
++struct perf_record_schedstat_cpu_v16 {
++#define CPU_FIELD(_type, _name, _ver)		_type _name
++#include "schedstat-v16.h"
++#undef CPU_FIELD
++};
++
+ struct perf_record_schedstat_cpu {
+ 	struct perf_event_header header;
+ 	__u64			 timestamp;
+ 	union {
+ 		struct perf_record_schedstat_cpu_v15 v15;
++		struct perf_record_schedstat_cpu_v16 v16;
+ 	};
+ 	__u32			 cpu;
+ 	__u16			 version;
+@@ -479,6 +486,12 @@ struct perf_record_schedstat_domain_v15 {
+ #undef DOMAIN_FIELD
+ };
+ 
++struct perf_record_schedstat_domain_v16 {
++#define DOMAIN_FIELD(_type, _name, _ver)	_type _name
++#include "schedstat-v16.h"
++#undef DOMAIN_FIELD
++};
++
+ #define DOMAIN_NAME_LEN		16
+ 
+ struct perf_record_schedstat_domain {
+@@ -490,6 +503,7 @@ struct perf_record_schedstat_domain {
+ 	char			 name[DOMAIN_NAME_LEN];
+ 	union {
+ 		struct perf_record_schedstat_domain_v15 v15;
++		struct perf_record_schedstat_domain_v16 v16;
+ 	};
+ 	__u16			 nr_cpus;
+ 	__u8			 cpu_mask[];
+diff --git a/tools/lib/perf/include/perf/schedstat-v16.h b/tools/lib/perf/include/perf/schedstat-v16.h
+new file mode 100644
+index 000000000000..d6a4691b2fd5
+--- /dev/null
++++ b/tools/lib/perf/include/perf/schedstat-v16.h
+@@ -0,0 +1,52 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++
++#ifdef CPU_FIELD
++CPU_FIELD(__u32, yld_count, v16);
++CPU_FIELD(__u32, array_exp, v16);
++CPU_FIELD(__u32, sched_count, v16);
++CPU_FIELD(__u32, sched_goidle, v16);
++CPU_FIELD(__u32, ttwu_count, v16);
++CPU_FIELD(__u32, ttwu_local, v16);
++CPU_FIELD(__u64, rq_cpu_time, v16);
++CPU_FIELD(__u64, run_delay, v16);
++CPU_FIELD(__u64, pcount, v16);
++#endif
++
++#ifdef DOMAIN_FIELD
++DOMAIN_FIELD(__u32, busy_lb_count, v16);
++DOMAIN_FIELD(__u32, busy_lb_balanced, v16);
++DOMAIN_FIELD(__u32, busy_lb_failed, v16);
++DOMAIN_FIELD(__u32, busy_lb_imbalance, v16);
++DOMAIN_FIELD(__u32, busy_lb_gained, v16);
++DOMAIN_FIELD(__u32, busy_lb_hot_gained, v16);
++DOMAIN_FIELD(__u32, busy_lb_nobusyq, v16);
++DOMAIN_FIELD(__u32, busy_lb_nobusyg, v16);
++DOMAIN_FIELD(__u32, idle_lb_count, v16);
++DOMAIN_FIELD(__u32, idle_lb_balanced, v16);
++DOMAIN_FIELD(__u32, idle_lb_failed, v16);
++DOMAIN_FIELD(__u32, idle_lb_imbalance, v16);
++DOMAIN_FIELD(__u32, idle_lb_gained, v16);
++DOMAIN_FIELD(__u32, idle_lb_hot_gained, v16);
++DOMAIN_FIELD(__u32, idle_lb_nobusyq, v16);
++DOMAIN_FIELD(__u32, idle_lb_nobusyg, v16);
++DOMAIN_FIELD(__u32, newidle_lb_count, v16);
++DOMAIN_FIELD(__u32, newidle_lb_balanced, v16);
++DOMAIN_FIELD(__u32, newidle_lb_failed, v16);
++DOMAIN_FIELD(__u32, newidle_lb_imbalance, v16);
++DOMAIN_FIELD(__u32, newidle_lb_gained, v16);
++DOMAIN_FIELD(__u32, newidle_lb_hot_gained, v16);
++DOMAIN_FIELD(__u32, newidle_lb_nobusyq, v16);
++DOMAIN_FIELD(__u32, newidle_lb_nobusyg, v16);
++DOMAIN_FIELD(__u32, alb_count, v16);
++DOMAIN_FIELD(__u32, alb_failed, v16);
++DOMAIN_FIELD(__u32, alb_pushed, v16);
++DOMAIN_FIELD(__u32, sbe_count, v16);
++DOMAIN_FIELD(__u32, sbe_balanced, v16);
++DOMAIN_FIELD(__u32, sbe_pushed, v16);
++DOMAIN_FIELD(__u32, sbf_count, v16);
++DOMAIN_FIELD(__u32, sbf_balanced, v16);
++DOMAIN_FIELD(__u32, sbf_pushed, v16);
++DOMAIN_FIELD(__u32, ttwu_wake_remote, v16);
++DOMAIN_FIELD(__u32, ttwu_move_affine, v16);
++DOMAIN_FIELD(__u32, ttwu_move_balance, v16);
++#endif
+diff --git a/tools/perf/util/event.c b/tools/perf/util/event.c
+index 0f863d38abe2..64f81e7b7f70 100644
+--- a/tools/perf/util/event.c
++++ b/tools/perf/util/event.c
+@@ -566,6 +566,9 @@ size_t perf_event__fprintf_schedstat_cpu(union perf_event *event, FILE *fp)
+ 	if (version == 15) {
+ #include <perf/schedstat-v15.h>
+ 		return size;
++	} else if (version == 16) {
++#include <perf/schedstat-v16.h>
++		return size;
+ 	}
+ #undef CPU_FIELD
+ 
+@@ -641,6 +644,9 @@ size_t perf_event__fprintf_schedstat_domain(union perf_event *event, FILE *fp)
+ 	if (version == 15) {
+ #include <perf/schedstat-v15.h>
+ 		return size;
++	} else if (version == 16) {
++#include <perf/schedstat-v16.h>
++		return size;
+ 	}
+ #undef DOMAIN_FIELD
+ 
+diff --git a/tools/perf/util/synthetic-events.c b/tools/perf/util/synthetic-events.c
+index f928f07bea15..e9dc1e14cfea 100644
+--- a/tools/perf/util/synthetic-events.c
++++ b/tools/perf/util/synthetic-events.c
+@@ -2549,6 +2549,8 @@ static union perf_event *__synthesize_schedstat_cpu(struct io *io, __u16 version
+ 
+ 	if (version == 15) {
+ #include <perf/schedstat-v15.h>
++	} else if (version == 16) {
++#include <perf/schedstat-v16.h>
+ 	}
+ #undef CPU_FIELD
+ 
+@@ -2661,6 +2663,8 @@ static union perf_event *__synthesize_schedstat_domain(struct io *io, __u16 vers
+ 
+ 	if (version == 15) {
+ #include <perf/schedstat-v15.h>
++	} else if (version == 16) {
++#include <perf/schedstat-v16.h>
+ 	}
+ #undef DOMAIN_FIELD
+ 
+@@ -2703,6 +2707,8 @@ int perf_event__synthesize_schedstat(const struct perf_tool *tool,
+ 
+ 	if (!strcmp(line, "version 15\n")) {
+ 		version = 15;
++	} else if (!strcmp(line, "version 16\n")) {
++		version = 16;
+ 	} else {
+ 		pr_err("Unsupported %s version: %s", path, line + 8);
+ 		goto out_free_line;
+-- 
+2.34.1
+
