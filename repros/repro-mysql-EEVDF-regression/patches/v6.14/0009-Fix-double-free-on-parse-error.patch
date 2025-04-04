@@ -1,0 +1,55 @@
+From 51bd74aeaf971f3939604f54c1b81f0869249722 Mon Sep 17 00:00:00 2001
+From: Cristian Prundeanu <cpru@amazon.com>
+Date: Wed, 2 Apr 2025 22:21:06 +0000
+Subject: [PATCH] Fix double free on parse error
+
+Signed-off-by: Cristian Prundeanu <cpru@amazon.com>
+---
+ tools/perf/util/synthetic-events.c | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/tools/perf/util/synthetic-events.c b/tools/perf/util/synthetic-events.c
+index 43cd7d321085..e3d16ed9ceca 100644
+--- a/tools/perf/util/synthetic-events.c
++++ b/tools/perf/util/synthetic-events.c
+@@ -2586,7 +2586,7 @@ static union perf_event *__synthesize_schedstat_domain(struct io *io, __u16 vers
+ 	struct perf_env env = { .total_mem = 0, };
+ 	int nr_cpus_avail = perf_env__nr_cpus_avail(&env);
+ 	struct perf_record_schedstat_domain *ds;
+-	union perf_event *event;
++	union perf_event *event = NULL;
+ 	size_t d_name_len = 0;
+ 	char *d_name = NULL;
+ 	size_t cpu_mask_len = 0;
+@@ -2655,9 +2655,6 @@ static union perf_event *__synthesize_schedstat_domain(struct io *io, __u16 vers
+ 		low = !low;
+ 	}
+ 
+-	free(d_name);
+-	free(cpu_mask);
+-
+ #define DOMAIN_FIELD(_type, _name, _desc, _format, _is_jiffies, _ver)	\
+ 	do {								\
+ 		__u64 _tmp;						\
+@@ -2677,15 +2674,16 @@ static union perf_event *__synthesize_schedstat_domain(struct io *io, __u16 vers
+ #undef DOMAIN_FIELD
+ 
+ 	ds->cpu = cpu;
+-	return event;
++	goto out_cpu_mask;
+ 
+ out_domain:
+ 	free(event);
++	event = NULL;
+ out_cpu_mask:
+ 	free(cpu_mask);
+ out:
+ 	free(d_name);
+-	return NULL;
++	return event;
+ }
+ 
+ int perf_event__synthesize_schedstat(const struct perf_tool *tool,
+-- 
+2.34.1
+

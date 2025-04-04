@@ -75,15 +75,13 @@ function scenario:run_mysql()
     done
     repro:info "Starting perf sched stats with wait=${SCENARIO_PERF_WAIT} and duration=${SCENARIO_PERF_DURATION}"
     {
-        sleep ${SCENARIO_PERF_WAIT}
-        cp /proc/schedstat "schedstat-${label}-before"
-        sleep ${SCENARIO_PERF_DURATION}
-        cp /proc/schedstat "schedstat-${label}-after"
-    }&
-    {
-        sleep ${SCENARIO_PERF_WAIT}
-        repro:cmd sudo perf sched stats record "--output=perf-${label}.data" -- sleep ${SCENARIO_PERF_DURATION}
-        sudo chown $USER "perf-${label}.data"
+        sleep "${SCENARIO_PERF_WAIT}"
+        cat /proc/schedstat >"schedstat-${label}-before"
+        repro:cmd sudo bash -c "'echo 1 >/proc/sys/kernel/sched_schedstats'"
+        repro:cmd sudo perf sched stats record "--output=perf-${label}.data" -- sleep "${SCENARIO_PERF_DURATION}"
+        repro:cmd sudo bash -c "'echo 0 >/proc/sys/kernel/sched_schedstats'"
+        cat /proc/schedstat >"schedstat-${label}-after"
+        sudo chown "$USER" "perf-${label}.data"
     }&
     repro:run mysql SUT "$@"
 }
