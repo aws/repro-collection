@@ -36,8 +36,8 @@ function scenario:build_kernel() {
     shift
     local build_args="CONFIG_SCHED_DEBUG=y CONFIG_PROC_SYSCTL=y CONFIG_SYSCTL=y"
     build_args+=" CONFIG_HZ_100= CONFIG_HZ_250=y CONFIG_HZ_300= CONFIG_HZ_1000= CONFIG_HZ=250 $*"
-    pushd ${REPROCFG_TMP}
-    repro:cmd ${REPROCFG_ROOT}/util/kernel_from_src.sh --install --version=$tag "--patch-dir=${SCENARIO_PATH}/patches" $build_args
+    pushd "${REPROCFG_TMP}"
+    repro:cmd "${REPROCFG_ROOT}/util/kernel_from_src.sh" --install "--version=$tag" "--patch-dir=${SCENARIO_PATH}/patches" $build_args
     popd
 }
 
@@ -94,7 +94,7 @@ function scenario:run:sut()
     : ${SCENARIO_PERF_WAIT:=$((60 * HAMMERDB_PARAM_RAMPUP_MIN * 2))}
     : ${SCENARIO_PERF_DURATION:=$((60 * HAMMERDB_PARAM_DURATION_MIN / 2))}
 
-    repro:persistent_steps ${SCENARIO_NAME} <<-EOT
+    repro:persistent_steps "${SCENARIO_NAME}" <<-EOT
         repro:package:update
         # Removing cryptsetup to avoid "couldn't resolve device /dev/root" errors with custom kernel builds
         repro:package:remove cryptsetup
