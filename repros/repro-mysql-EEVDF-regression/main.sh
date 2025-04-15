@@ -108,9 +108,9 @@ function scenario:run:sut()
         scenario:run_mysql "kernel 6.6 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.6.0-NOx2 6.6 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
         scenario:run_mysql "kernel 6.6 SCHED_BATCH" k6.6.0-batch 6.6 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
 
-        scenario:run_mysql "default kernel 6.6.85" k6.6.85-default 6.6.85
-        scenario:run_mysql "kernel 6.6.85 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.6.85-NOx2 6.6.85 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.6.85 SCHED_BATCH" k6.6.85-batch 6.6.85 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
+        scenario:run_mysql "default kernel 6.6.87" k6.6.87-default 6.6.87
+        scenario:run_mysql "kernel 6.6.87 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.6.87-NOx2 6.6.87 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
+        scenario:run_mysql "kernel 6.6.87 SCHED_BATCH" k6.6.87-batch 6.6.87 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
 
         scenario:run_mysql "default kernel 6.8" k6.8.0-default 6.8 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
         scenario:run_mysql "kernel 6.8 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.8.0-NOx2 6.8 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
@@ -124,29 +124,29 @@ function scenario:run:sut()
         scenario:run_mysql "kernel 6.12 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.12.0-NOx2 6.12 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
         scenario:run_mysql "kernel 6.12 SCHED_BATCH" k6.12.0-batch 6.12 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
 
-        scenario:run_mysql "default kernel 6.12.22" k6.12.22-default 6.12.22 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.12.22 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.12.22-NOx2 6.12.22 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.12.22 SCHED_BATCH" k6.12.22-batch 6.12.22 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
+        scenario:run_mysql "default kernel 6.12.23" k6.12.23-default 6.12.23 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
+        scenario:run_mysql "kernel 6.12.23 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.12.23-NOx2 6.12.23 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
+        scenario:run_mysql "kernel 6.12.23 SCHED_BATCH" k6.12.23-batch 6.12.23 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
 
         scenario:run_mysql "default kernel 6.13" k6.13.0-default 6.13 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
         scenario:run_mysql "kernel 6.13 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.13.0-NOx2 6.13 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
         scenario:run_mysql "kernel 6.13 SCHED_BATCH" k6.13.0-batch 6.13 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
 
-        scenario:run_mysql "default kernel 6.13.10" k6.13.10-default 6.13.10 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.13.10 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.13.10-NOx2 6.13.10 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.13.10 SCHED_BATCH" k6.13.10-batch 6.13.10 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
+        scenario:run_mysql "default kernel 6.13.11" k6.13.11-default 6.13.11 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
+        scenario:run_mysql "kernel 6.13.11 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.13.11-NOx2 6.13.11 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
+        scenario:run_mysql "kernel 6.13.11 SCHED_BATCH" k6.13.11-batch 6.13.11 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
 
         scenario:run_mysql "default kernel 6.14" k6.14.0-default 6.14 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
         scenario:run_mysql "kernel 6.14 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.14.0-NOx2 6.14 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
         scenario:run_mysql "kernel 6.14 SCHED_BATCH" k6.14.0-batch 6.14 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
 
-        scenario:run_mysql "default kernel 6.14.1" k6.14.1-default 6.14.1 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.14.1 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.14.1-NOx2 6.14.1 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.14.1 SCHED_BATCH" k6.14.1-batch 6.14.1 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
+        scenario:run_mysql "default kernel 6.14.2" k6.14.2-default 6.14.2 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
+        scenario:run_mysql "kernel 6.14.2 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.14.2-NOx2 6.14.2 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
+        scenario:run_mysql "kernel 6.14.2 SCHED_BATCH" k6.14.2-batch 6.14.2 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
 
-        scenario:run_mysql "default kernel 6.15-rc1" k6.15.rc1-default 6.15-rc1 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.15-rc1 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.15.rc1-NOx2 6.15-rc1 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.15-rc1 SCHED_BATCH" k6.15.rc1-batch 6.15-rc1 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
+        scenario:run_mysql "default kernel 6.15-rc2" k6.15.rc2-default 6.15-rc2 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
+        scenario:run_mysql "kernel 6.15-rc2 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.15.rc2-NOx2 6.15-rc2 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
+        scenario:run_mysql "kernel 6.15-rc2 SCHED_BATCH" k6.15.rc2-batch 6.15-rc2 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
 
         repro:wait_for_ldg "STEP" "DONE"
         repro:info "Done"
