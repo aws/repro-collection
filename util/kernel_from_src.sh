@@ -59,7 +59,8 @@ echo "Linux dir: $LINUX_DIR"
 cd "$LINUX_DIR"
 [ -n "$LINUX_TAG" ] && {
     echo "Linux tag: $LINUX_TAG"
-    git fetch origin "$LINUX_TAG" || { echo >&2 "Linux version not found: $LINUX_TAG"; exit 1; }
+    git fetch origin
+    git rev-parse "$LINUX_TAG" || { echo >&2 "Linux version not found: $LINUX_TAG"; exit 1; }
     git checkout --force "$LINUX_TAG"; git reset --hard; git clean --force -d
 }
 [ -n "$LINUX_PATCHDIR" ] && {
