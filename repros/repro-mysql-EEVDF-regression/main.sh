@@ -144,9 +144,9 @@ function scenario:run:sut()
         scenario:run_mysql "kernel 6.14.4 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.14.4-NOx2 6.14.4 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
         scenario:run_mysql "kernel 6.14.4 SCHED_BATCH" k6.14.4-batch 6.14.4 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
 
-        scenario:run_mysql "default kernel 6.15-rc3" k6.15.rc3-default 6.15-rc3 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.15-rc3 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.15.rc3-NOx2 6.15-rc3 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.15-rc3 SCHED_BATCH" k6.15.rc3-batch 6.15-rc3 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
+        scenario:run_mysql "default kernel 6.15-rc4" k6.15.rc4-default 6.15-rc4 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
+        scenario:run_mysql "kernel 6.15-rc4 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.15.rc4-NOx2 6.15-rc4 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
+        scenario:run_mysql "kernel 6.15-rc4 SCHED_BATCH" k6.15.rc4-batch 6.15-rc4 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
 
         repro:wait_for_ldg "STEP" "DONE"
         repro:info "Done"
