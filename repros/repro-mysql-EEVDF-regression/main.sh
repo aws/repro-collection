@@ -82,6 +82,8 @@ function scenario:run_mysql()
         repro:cmd sudo bash -c "'echo 0 >/proc/sys/kernel/sched_schedstats'"
         cat /proc/schedstat >"schedstat-${label}-after"
         sudo chown "$USER" "perf-${label}.data"
+        perf sched stats report -i "perf-${label}.data" >"perf-${label}.report"
+        repro:cmd sed '/CPU\ 0/{d;q}' "perf-${label}.report"
     }&
     repro:run mysql SUT "$@"
 }
