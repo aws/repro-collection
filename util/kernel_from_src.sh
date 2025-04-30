@@ -1,13 +1,14 @@
 #!/bin/bash
 
 [ "$1" = "--help" ] && {
-    echo "Usage: $0 [--install] [--version=<kernel_tag>] [--path=<linux_dir>] [--repo=<git_repo>] [<config_option>=<value> [...]]"
+    echo "Usage: $0 [--install] [--version=<kernel_tag>] [--path=<linux_dir>] [--repo=<git_repo>] [--reuse-build] [<config_option>=<value> [...]]"
     echo "Build the Linux kernel (optionally download from repo and activate it after building)"
     echo "E.g.: $0 --install --version=v6.12 CONFIG_SCHED_DEBUG=y CONFIG_PROC_SYSCTL=y CONFIG_SYSCTL=y 2>&1 | tee build.log"
     exit 0
 }
 : ${install_kernel:=false} # default: just build the kernel, don't install it
 : ${use_suse_repo:=false}  # default: use mainline Linux repo, not SUSE (only for SUSE hosts)
+: ${reuse_build:=false}    # default: if the given tag is already built, assume the config hasn't changed and reuse the kernel
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -16,6 +17,7 @@ while [ $# -gt 0 ]; do
         --repo=*) LINUX_REPO="${1#*=}";;
         --version=*) LINUX_TAG="${1#*=}";;
         --patch-dir=*) LINUX_PATCHDIR="${1#*=}";;
+        --reuse-build) reuse_build=true;;
         --) shift; break;;
         --*) echo "Unknown argument: $1"; exit 1;;
         *) break;;
@@ -68,7 +70,7 @@ cd "$LINUX_DIR"
     for patch in "$LINUX_PATCHDIR/$LINUX_TAG"/*.patch; do
         echo
         echo "Applying patch: $patch"
-        git am -3 --ignore-space-change --ignore-whitespace "$patch" || git am --abort
+        git am -3 --ignore-space-change --ignore-whitespace --committer-date-is-author-date "$patch" || git am --abort
     done
 }
 
@@ -87,9 +89,26 @@ for opt in "$@"; do
     echo "$opt" >> .config
 done
 
-make olddefconfig
-time make -j $(nproc) LOCALVERSION=-$(git rev-parse --short HEAD)
-make EXTRA_CFLAGS=-Wno-maybe-uninitialized clean all -j $(nproc) -C tools/perf
+function find_kernel() {
+    local kernel gitrev="${1:-$(git rev-parse --short HEAD)}"
+    shift
+    shopt -s nullglob
+    for kernel in /boot/vmlinu*-$gitrev /boot/vmlinu*-${gitrev}.gz /boot/Image*-$gitrev /boot/Image*-$gitrev.gz "$@"; do
+        [ -e "$kernel" ] && echo "$kernel" && break
+    done
+}
+
+gitrev=$(git rev-parse --short HEAD)
+[ $reuse_build -a -n "$(find_kernel $gitrev)" ] && echo "Reusing previously built kernel $gitrev" || {
+    echo "Building kernel $LINUX_TAG $gitrev..."
+    make olddefconfig
+    time make -j $(nproc) LOCALVERSION=-$gitrev
+}
+[ -x /usr/local/bin/perf-${LINUX_TAG}-${gitrev} ] || {
+    echo "Building perf..."
+    make EXTRA_CFLAGS=-Wno-maybe-uninitialized clean all -j $(nproc) -C tools/perf
+    sudo cp tools/perf/perf /usr/local/bin/perf-${LINUX_TAG}-${gitrev}
+}
 [ "$CPU" = aarch64 -o "$HOSTTYPE" = aarch64 ] && arch=arm64 || arch=x86
 ls -l arch/$arch/boot/*Image*
 
@@ -97,11 +116,10 @@ $install_kernel && {
     echo "Installing kernel..."
     sudo make modules_install -j $(nproc)
     sudo make install -j $(nproc)
-    sudo cp tools/perf/perf /usr/local/bin/
-    gitrev=$(git rev-parse --short HEAD)
-    shopt -s nullglob
-    ls -l /boot/*-$gitrev*
-    for kernel in /boot/vmlinu*-$gitrev /boot/vmlinu*-${gitrev}.gz /boot/Image*-$gitrev /boot/Image*-$gitrev.gz $(realpath /boot/vmlinuz); do break; done
+    [ -x /usr/local/bin/perf-${LINUX_TAG}-${gitrev} ] && sudo ln -sf /usr/local/bin/perf-${LINUX_TAG}-${gitrev} /usr/local/bin/perf
+    perf --version
+    ls -l /usr/local/bin/perf /boot/*-$gitrev*
+    kernel="$(find_kernel $gitrev $(realpath /boot/vmlinuz))"
     [ -z "$kernel" ] && {
         echo >&2 "Can't find /boot/vmlinu*-$gitrev, copying manually"
         version_name=${LINUX_TAG:-default}-$gitrev

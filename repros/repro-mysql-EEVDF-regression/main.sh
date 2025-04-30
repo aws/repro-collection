@@ -2,6 +2,7 @@
 # source this file, don't run it
 
 : ${SCENARIO_AUTOBUILD_KERNELS:=true}
+: ${SCENARIO_REUSE_BUILT_KERNELS:=true}
 
 function scenario:help()
 {
@@ -32,12 +33,13 @@ function scenario:workloads() {
 
 # build and install kernel; args: <kernel_tag> [config_options]
 function scenario:build_kernel() {
-    local tag="$1"
+    local tag="$1" reuse_build
     shift
     local build_args="CONFIG_SCHED_DEBUG=y CONFIG_PROC_SYSCTL=y CONFIG_SYSCTL=y"
     build_args+=" CONFIG_HZ_100= CONFIG_HZ_250=y CONFIG_HZ_300= CONFIG_HZ_1000= CONFIG_HZ=250 $*"
+    $SCENARIO_REUSE_BUILT_KERNELS && reuse_build="--reuse-build"
     pushd "${REPROCFG_TMP}"
-    repro:cmd "${REPROCFG_ROOT}/util/kernel_from_src.sh" --install "--version=$tag" "--patch-dir=${SCENARIO_PATH}/patches" $build_args
+    repro:cmd "${REPROCFG_ROOT}/util/kernel_from_src.sh" --install $reuse_build "--version=$tag" "--patch-dir=${SCENARIO_PATH}/patches" $build_args
     popd
 }
 
