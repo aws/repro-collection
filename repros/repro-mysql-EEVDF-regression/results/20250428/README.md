@@ -12,11 +12,15 @@ Tests were performed on a 32G RAM, 16-vCPU SUT, connected via TCP/IP to a 128G R
 |6.12.25|default|-5.1%|-5.0%|+7.8%|
 |6.13.12|default|-6.1%|-6.0%|+8.6%|
 |6.14.4|default|-7.4%|-7.4%|+9.6%|
+|6.15.rc2|default|-5.8%|-5.8%|+8.2%|
+|6.15.rc3|default|-5.6%|-5.5%|+7.9%|
 |6.15-rc4|default|-7.4%|-7.5%|+10.2%|
 |compared to 6.5.13 `SCHED_BATCH`:|||||
 |6.12.25|SCHED_BATCH|-8.1%|-8.1%|+8.7%|
 |6.13.12|SCHED_BATCH|-7.8%|-7.7%|+8.3%|
 |6.14.4|SCHED_BATCH|-7.9%|-7.9%|+8.3%|
+|6.15.rc2|SCHED_BATCH|-7.9%|-7.9%|+8.2%|
+|6.15.rc3|SCHED_BATCH|-7.4%|-7.4%|+7.8%|
 |6.15-rc4|SCHED_BATCH|-10.6%|-10.6%|+11.8%|
 
 ## Scheduler stats
@@ -198,4 +202,6 @@ Perf.data files collected with `perf sched stats record` are available for exami
 |6.5.13|[report](perf-k6.5.13-default.report)|[raw](perf-k6.5.13-default.data)|[report](perf-k6.5.13-batch.report)|[raw](perf-k6.5.13-batch.data)|
 |6.12.25|[report](perf-k6.12.25-default.report)|[raw](perf-k6.12.25-default.data)|[report](perf-k6.12.25-batch.report)|[raw](perf-k6.12.25-batch.data)|
 |6.14.4|[report](perf-k6.14.4-default.report)|[raw](perf-k6.14.4-default.data)|[report](perf-k6.14.4-batch.report)|[raw](perf-k6.14.4-batch.data)|
+|6.15-rc2|[report](perf-k6.15.rc2-default.report)|[raw](perf-k6.15.rc2-default.data)|[report](perf-k6.15.rc2-batch.report)|[raw](perf-k6.15.rc2-batch.data)|
+|6.15-rc3|[report](perf-k6.15.rc3-default.report)|[raw](perf-k6.15.rc3-default.data)|[report](perf-k6.15.rc3-batch.report)|[raw](perf-k6.15.rc3-batch.data)|
 |6.15-rc4|[report](perf-k6.15.rc4-default.report)|[raw](perf-k6.15.rc4-default.data)|[report](perf-k6.15.rc4-batch.report)|[raw](perf-k6.15.rc4-batch.data)|
