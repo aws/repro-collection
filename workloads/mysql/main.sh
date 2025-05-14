@@ -2,7 +2,7 @@
 # source this file, don't run it
 
 # test configuration
-: ${HAMMERDB_PARAM_VUSERS_PER_CORE:=4} # number of "virtual users" per core
+: ${HAMMERDB_PARAM_VUSERS_PER_CORE:=8} # number of "virtual users" per SUT core
 : ${HAMMERDB_PARAM_WH:=24} # total number of "warehouses"; a good ballpark is (SUT_RAM_GB * 25 / 32)
 : ${HAMMERDB_PARAM_RAMPUP_MIN:=5} # ramp up time, in minutes
 : ${HAMMERDB_PARAM_DURATION_MIN:=20} # test duration, in minutes
@@ -92,9 +92,16 @@ function mysql:install:loadgen() {
 EOT
 }
 
+function mysql:configure:sut() {
+    repro:wait_for_ldg nproc $(nproc)
+}
+
 function mysql:configure:loadgen() {
     repro:debug Loadgen configure
-    HAMMERDB_PARAM_VUSERS=$((HAMMERDB_PARAM_VUSERS_PER_CORE * $(nproc)))
+    local SUT_vCPUs=$(repro:wait_for_sut nproc)
+    repro:debug SUT vCPUs: $SUT_vCPUs, LDG vCPUs: $(nproc)
+    [ $(nproc) -lt $((SUT_vCPUs * 4)) ] && repro:warn "LDG has less than 4x SUT vCPUs; results may be inaccurate"
+    HAMMERDB_PARAM_VUSERS=$((HAMMERDB_PARAM_VUSERS_PER_CORE * $SUT_vCPUs))
     HAMMERDB_PARAM_DURATION_TOTAL_SEC=$((HAMMERDB_PARAM_RAMPUP_MIN * 60 + HAMMERDB_PARAM_DURATION_MIN * 60 + 120))
     HAMMERDB_PARAM_RAMPDOWN_MSEC=$((HAMMERDB_PARAM_RAMPDOWN_MIN * 60 * 1000))
     repro:template <${REPRO_ROOT}/files/mysql_tpcc_run.tcl >${HAMMERDB_PATH}/mysql_tpcc_run.tcl
