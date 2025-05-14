@@ -1,8 +1,9 @@
 # Repro: mysql + hammerdb before and after EEVDF
 # source this file, don't run it
 
-: ${SCENARIO_AUTOBUILD_KERNELS:=true}
-: ${SCENARIO_REUSE_BUILT_KERNELS:=true}
+: ${SCENARIO_AUTOBUILD_KERNELS:=true}        # automatically build kernel as needed (otherwise, just warn and allow user to build manually)
+: ${SCENARIO_SKIP_BUILD_ACTIVE_KERNEL:=true} # skip kernel build step when the active kernel matches the required version (the AUTOBUILD flag is also respected no matter what)
+: ${SCENARIO_REUSE_BUILT_KERNELS:=true}      # if the required kernel version was built before, reuse it (this will cause wrong results if testing the same kernel multiple times but with different config options)
 
 function scenario:help()
 {
@@ -47,7 +48,7 @@ function scenario:build_kernel() {
 function scenario:require_kernel() {
     local msg kernel="$(uname -r)"
     repro:info "Current kernel: $kernel"
-    [[ ! "$kernel" =~ ^${1}[0-9] ]] && [[ "$kernel" =~ ^${1} || "$kernel" =~ ^${1/-/.*-} ]] && return 0
+    $SCENARIO_SKIP_BUILD_ACTIVE_KERNEL && [[ ! "$kernel" =~ ^${1}[0-9] ]] && [[ "$kernel" =~ ^${1} || "$kernel" =~ ^${1/-/.*-} ]] && return 0
     repro:info "Looking for kernel: $1"
     if $SCENARIO_AUTOBUILD_KERNELS; then
         scenario:build_kernel v"$@"
