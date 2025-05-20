@@ -1,0 +1,1182 @@
+Columns description
+----------------------------------------------------------------------------------------------------
+DESC			-> Description of the field
+COUNT			-> Value of the field
+PCT_CHANGE		-> Percent change with corresponding base value
+AVG_JIFFIES		-> Avg time in jiffies between two consecutive occurrence of event
+----------------------------------------------------------------------------------------------------
+Time elapsed (in jiffies)                                        :      150000
+----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+CPU <ALL CPUS SUMMARY>
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT   PCT_CHANGE
+----------------------------------------------------------------------------------------------------
+sched_yield() count                                              :       33441
+Legacy counter can be ignored                                    :           0
+schedule() called                                                :     4638091
+schedule() left the processor idle                               :     1211214  (    26.11% )
+try_to_wake_up() was called                                      :     3366283
+try_to_wake_up() was called to wake up the local cpu             :     1242243  (    36.90% )
+total runtime by tasks on this processor (in jiffies)            : 490543323317
+total waittime by tasks on this processor (in jiffies)           : 763352259785  (   155.61% )
+total timeslices run on this cpu                                 :     3412020
+----------------------------------------------------------------------------------------------------
+CPU <ALL CPUS SUMMARY>, DOMAIN 0
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT    AVG_JIFFIES
+----------------------------------------- <Category idle> ------------------------------------------
+load_balance() count on cpu idle                                 :       18210  $        8.24 $
+load_balance() found balanced on cpu idle                        :       13960  $       10.74 $
+load_balance() move task failed on cpu idle                      :        3204  $       46.82 $
+imbalance sum on cpu idle                                        :        9153
+pull_task() count on cpu idle                                    :        1376
+pull_task() when target task was cache-hot on cpu idle           :           0
+load_balance() failed to find busier queue on cpu idle           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu idle           :       13959  $       10.75 $
+*load_balance() success count on cpu idle                        :        1046
+*avg task pulled per successful lb attempt (cpu idle)            :        1.32
+----------------------------------------- <Category busy> ------------------------------------------
+load_balance() count on cpu busy                                 :           0  $        0.00 $
+load_balance() found balanced on cpu busy                        :           0  $        0.00 $
+load_balance() move task failed on cpu busy                      :           0  $        0.00 $
+imbalance sum on cpu busy                                        :          39
+pull_task() count on cpu busy                                    :           0
+pull_task() when target task was cache-hot on cpu busy           :           0
+load_balance() failed to find busier queue on cpu busy           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu busy           :           0  $        0.00 $
+*load_balance() success count on cpu busy                        :           0
+*avg task pulled per successful lb attempt (cpu busy)            :        0.00
+---------------------------------------- <Category newidle> ----------------------------------------
+load_balance() count on cpu newly idle                           :     1323124  $        0.11 $
+load_balance() found balanced on cpu newly idle                  :      211725  $        0.71 $
+load_balance() move task failed on cpu newly idle                :      499288  $        0.30 $
+imbalance sum on cpu newly idle                                  :     1561513
+pull_task() count on cpu newly idle                              :      994193
+pull_task() when target task was cache-hot on cpu newly idle     :          18
+load_balance() failed to find busier queue on cpu newly idle     :          83  $     1807.23 $
+load_balance() failed to find busier group on cpu newly idle     :      192357  $        0.78 $
+*load_balance() success count on cpu newly idle                  :      612111
+*avg task pulled per successful lb attempt (cpu newly idle)      :        1.62
+--------------------------------- <Category active_load_balance()> ---------------------------------
+active_load_balance() count                                      :           0
+active_load_balance() move task failed                           :           0
+active_load_balance() successfully moved a task                  :           0
+--------------------------------- <Category sched_balance_exec()> ----------------------------------
+sbe_count is not used                                            :           0
+sbe_balanced is not used                                         :           0
+sbe_pushed is not used                                           :           0
+--------------------------------- <Category sched_balance_fork()> ----------------------------------
+sbf_count is not used                                            :           0
+sbf_balanced is not used                                         :           0
+sbf_pushed is not used                                           :           0
+------------------------------------------ <Wakeup Info> -------------------------------------------
+try_to_wake_up() awoke a task that last ran on a diff cpu        :     2124037
+try_to_wake_up() moved task because cache-cold on own cpu        :     1010542
+try_to_wake_up() started passive balancing                       :           0
+----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+CPU 0
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT   PCT_CHANGE
+----------------------------------------------------------------------------------------------------
+sched_yield() count                                              :       33433
+Legacy counter can be ignored                                    :           0
+schedule() called                                                :     4881622
+schedule() left the processor idle                               :     1277123  (    26.16% )
+try_to_wake_up() was called                                      :     4480927
+try_to_wake_up() was called to wake up the local cpu             :     1196581  (    26.70% )
+total runtime by tasks on this processor (in jiffies)            : 450941661893
+total waittime by tasks on this processor (in jiffies)           : 647158113206  (   143.51% )
+total timeslices run on this cpu                                 :     3587800
+----------------------------------------------------------------------------------------------------
+CPU 0, DOMAIN 0 CPUS <0-15, >
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT    AVG_JIFFIES
+----------------------------------------- <Category idle> ------------------------------------------
+load_balance() count on cpu idle                                 :       17591  $        8.53 $
+load_balance() found balanced on cpu idle                        :       13106  $       11.45 $
+load_balance() move task failed on cpu idle                      :        3445  $       43.54 $
+imbalance sum on cpu idle                                        :       11547
+pull_task() count on cpu idle                                    :        1486
+pull_task() when target task was cache-hot on cpu idle           :           0
+load_balance() failed to find busier queue on cpu idle           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu idle           :       13106  $       11.45 $
+*load_balance() success count on cpu idle                        :        1040
+*avg task pulled per successful lb attempt (cpu idle)            :        1.43
+----------------------------------------- <Category busy> ------------------------------------------
+load_balance() count on cpu busy                                 :           0  $        0.00 $
+load_balance() found balanced on cpu busy                        :           0  $        0.00 $
+load_balance() move task failed on cpu busy                      :           0  $        0.00 $
+imbalance sum on cpu busy                                        :           0
+pull_task() count on cpu busy                                    :           0
+pull_task() when target task was cache-hot on cpu busy           :           0
+load_balance() failed to find busier queue on cpu busy           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu busy           :           0  $        0.00 $
+*load_balance() success count on cpu busy                        :           0
+*avg task pulled per successful lb attempt (cpu busy)            :        0.00
+---------------------------------------- <Category newidle> ----------------------------------------
+load_balance() count on cpu newly idle                           :     1438207  $        0.10 $
+load_balance() found balanced on cpu newly idle                  :      211101  $        0.71 $
+load_balance() move task failed on cpu newly idle                :      541381  $        0.28 $
+imbalance sum on cpu newly idle                                  :     1716090
+pull_task() count on cpu newly idle                              :     1103113
+pull_task() when target task was cache-hot on cpu newly idle     :           9
+load_balance() failed to find busier queue on cpu newly idle     :          66  $     2272.73 $
+load_balance() failed to find busier group on cpu newly idle     :      192322  $        0.78 $
+*load_balance() success count on cpu newly idle                  :      685725
+*avg task pulled per successful lb attempt (cpu newly idle)      :        1.61
+--------------------------------- <Category active_load_balance()> ---------------------------------
+active_load_balance() count                                      :           0
+active_load_balance() move task failed                           :           0
+active_load_balance() successfully moved a task                  :           0
+--------------------------------- <Category sched_balance_exec()> ----------------------------------
+sbe_count is not used                                            :           0
+sbe_balanced is not used                                         :           0
+sbe_pushed is not used                                           :           0
+--------------------------------- <Category sched_balance_fork()> ----------------------------------
+sbf_count is not used                                            :           0
+sbf_balanced is not used                                         :           0
+sbf_pushed is not used                                           :           0
+------------------------------------------ <Wakeup Info> -------------------------------------------
+try_to_wake_up() awoke a task that last ran on a diff cpu        :     3284339
+try_to_wake_up() moved task because cache-cold on own cpu        :      950668
+try_to_wake_up() started passive balancing                       :           0
+----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+CPU 1
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT   PCT_CHANGE
+----------------------------------------------------------------------------------------------------
+sched_yield() count                                              :       25292
+Legacy counter can be ignored                                    :           0
+schedule() called                                                :     3676911
+schedule() left the processor idle                               :      963643  (    26.21% )
+try_to_wake_up() was called                                      :     3301824
+try_to_wake_up() was called to wake up the local cpu             :     1455044  (    44.07% )
+total runtime by tasks on this processor (in jiffies)            : 473991276741
+total waittime by tasks on this processor (in jiffies)           : 793770700565  (   167.47% )
+total timeslices run on this cpu                                 :     2703528
+----------------------------------------------------------------------------------------------------
+CPU 1, DOMAIN 0 CPUS <0-15, >
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT    AVG_JIFFIES
+----------------------------------------- <Category idle> ------------------------------------------
+load_balance() count on cpu idle                                 :       16833  $        8.91 $
+load_balance() found balanced on cpu idle                        :       13540  $       11.08 $
+load_balance() move task failed on cpu idle                      :        2535  $       59.17 $
+imbalance sum on cpu idle                                        :        9177
+pull_task() count on cpu idle                                    :         988
+pull_task() when target task was cache-hot on cpu idle           :           0
+load_balance() failed to find busier queue on cpu idle           :           1  $   150000.00 $
+load_balance() failed to find busier group on cpu idle           :       13539  $       11.08 $
+*load_balance() success count on cpu idle                        :         758
+*avg task pulled per successful lb attempt (cpu idle)            :        1.30
+----------------------------------------- <Category busy> ------------------------------------------
+load_balance() count on cpu busy                                 :           0  $        0.00 $
+load_balance() found balanced on cpu busy                        :           0  $        0.00 $
+load_balance() move task failed on cpu busy                      :           0  $        0.00 $
+imbalance sum on cpu busy                                        :           0
+pull_task() count on cpu busy                                    :           0
+pull_task() when target task was cache-hot on cpu busy           :           0
+load_balance() failed to find busier queue on cpu busy           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu busy           :           0  $        0.00 $
+*load_balance() success count on cpu busy                        :           0
+*avg task pulled per successful lb attempt (cpu busy)            :        0.00
+---------------------------------------- <Category newidle> ----------------------------------------
+load_balance() count on cpu newly idle                           :      930994  $        0.16 $
+load_balance() found balanced on cpu newly idle                  :      170241  $        0.88 $
+load_balance() move task failed on cpu newly idle                :      353265  $        0.42 $
+imbalance sum on cpu newly idle                                  :     1073585
+pull_task() count on cpu newly idle                              :      671671
+pull_task() when target task was cache-hot on cpu newly idle     :          10
+load_balance() failed to find busier queue on cpu newly idle     :          72  $     2083.33 $
+load_balance() failed to find busier group on cpu newly idle     :      157028  $        0.96 $
+*load_balance() success count on cpu newly idle                  :      407488
+*avg task pulled per successful lb attempt (cpu newly idle)      :        1.65
+--------------------------------- <Category active_load_balance()> ---------------------------------
+active_load_balance() count                                      :           0
+active_load_balance() move task failed                           :           0
+active_load_balance() successfully moved a task                  :           0
+--------------------------------- <Category sched_balance_exec()> ----------------------------------
+sbe_count is not used                                            :           0
+sbe_balanced is not used                                         :           0
+sbe_pushed is not used                                           :           0
+--------------------------------- <Category sched_balance_fork()> ----------------------------------
+sbf_count is not used                                            :           0
+sbf_balanced is not used                                         :           0
+sbf_pushed is not used                                           :           0
+------------------------------------------ <Wakeup Info> -------------------------------------------
+try_to_wake_up() awoke a task that last ran on a diff cpu        :     1846778
+try_to_wake_up() moved task because cache-cold on own cpu        :     1207417
+try_to_wake_up() started passive balancing                       :           0
+----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+CPU 2
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT   PCT_CHANGE
+----------------------------------------------------------------------------------------------------
+sched_yield() count                                              :       33468
+Legacy counter can be ignored                                    :           0
+schedule() called                                                :     4945115
+schedule() left the processor idle                               :     1307129  (    26.43% )
+try_to_wake_up() was called                                      :     4149747
+try_to_wake_up() was called to wake up the local cpu             :     1133006  (    27.30% )
+total runtime by tasks on this processor (in jiffies)            : 452443209079
+total waittime by tasks on this processor (in jiffies)           : 633863387109  (   140.10% )
+total timeslices run on this cpu                                 :     3621527
+----------------------------------------------------------------------------------------------------
+CPU 2, DOMAIN 0 CPUS <0-15, >
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT    AVG_JIFFIES
+----------------------------------------- <Category idle> ------------------------------------------
+load_balance() count on cpu idle                                 :       17329  $        8.66 $
+load_balance() found balanced on cpu idle                        :       12723  $       11.79 $
+load_balance() move task failed on cpu idle                      :        3404  $       44.07 $
+imbalance sum on cpu idle                                        :       11523
+pull_task() count on cpu idle                                    :        1563
+pull_task() when target task was cache-hot on cpu idle           :           0
+load_balance() failed to find busier queue on cpu idle           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu idle           :       12721  $       11.79 $
+*load_balance() success count on cpu idle                        :        1202
+*avg task pulled per successful lb attempt (cpu idle)            :        1.30
+----------------------------------------- <Category busy> ------------------------------------------
+load_balance() count on cpu busy                                 :           1  $   150000.00 $
+load_balance() found balanced on cpu busy                        :           1  $   150000.00 $
+load_balance() move task failed on cpu busy                      :           0  $        0.00 $
+imbalance sum on cpu busy                                        :           0
+pull_task() count on cpu busy                                    :           0
+pull_task() when target task was cache-hot on cpu busy           :           0
+load_balance() failed to find busier queue on cpu busy           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu busy           :           1  $   150000.00 $
+*load_balance() success count on cpu busy                        :           0
+*avg task pulled per successful lb attempt (cpu busy)            :        0.00
+---------------------------------------- <Category newidle> ----------------------------------------
+load_balance() count on cpu newly idle                           :     1493846  $        0.10 $
+load_balance() found balanced on cpu newly idle                  :      222831  $        0.67 $
+load_balance() move task failed on cpu newly idle                :      563099  $        0.27 $
+imbalance sum on cpu newly idle                                  :     1777092
+pull_task() count on cpu newly idle                              :     1138860
+pull_task() when target task was cache-hot on cpu newly idle     :          18
+load_balance() failed to find busier queue on cpu newly idle     :          70  $     2142.86 $
+load_balance() failed to find busier group on cpu newly idle     :      201688  $        0.74 $
+*load_balance() success count on cpu newly idle                  :      707916
+*avg task pulled per successful lb attempt (cpu newly idle)      :        1.61
+--------------------------------- <Category active_load_balance()> ---------------------------------
+active_load_balance() count                                      :           0
+active_load_balance() move task failed                           :           0
+active_load_balance() successfully moved a task                  :           0
+--------------------------------- <Category sched_balance_exec()> ----------------------------------
+sbe_count is not used                                            :           0
+sbe_balanced is not used                                         :           0
+sbe_pushed is not used                                           :           0
+--------------------------------- <Category sched_balance_fork()> ----------------------------------
+sbf_count is not used                                            :           0
+sbf_balanced is not used                                         :           0
+sbf_pushed is not used                                           :           0
+------------------------------------------ <Wakeup Info> -------------------------------------------
+try_to_wake_up() awoke a task that last ran on a diff cpu        :     3016739
+try_to_wake_up() moved task because cache-cold on own cpu        :      906468
+try_to_wake_up() started passive balancing                       :           0
+----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+CPU 3
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT   PCT_CHANGE
+----------------------------------------------------------------------------------------------------
+sched_yield() count                                              :       28485
+Legacy counter can be ignored                                    :           0
+schedule() called                                                :     4133898
+schedule() left the processor idle                               :     1109806  (    26.85% )
+try_to_wake_up() was called                                      :     2818646
+try_to_wake_up() was called to wake up the local cpu             :     1186306  (    42.09% )
+total runtime by tasks on this processor (in jiffies)            : 465009932797
+total waittime by tasks on this processor (in jiffies)           : 731998814087  (   157.42% )
+total timeslices run on this cpu                                 :     3012103
+----------------------------------------------------------------------------------------------------
+CPU 3, DOMAIN 0 CPUS <0-15, >
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT    AVG_JIFFIES
+----------------------------------------- <Category idle> ------------------------------------------
+load_balance() count on cpu idle                                 :       17097  $        8.77 $
+load_balance() found balanced on cpu idle                        :       13203  $       11.36 $
+load_balance() move task failed on cpu idle                      :        2917  $       51.42 $
+imbalance sum on cpu idle                                        :        8483
+pull_task() count on cpu idle                                    :        1245
+pull_task() when target task was cache-hot on cpu idle           :           1
+load_balance() failed to find busier queue on cpu idle           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu idle           :       13203  $       11.36 $
+*load_balance() success count on cpu idle                        :         977
+*avg task pulled per successful lb attempt (cpu idle)            :        1.27
+----------------------------------------- <Category busy> ------------------------------------------
+load_balance() count on cpu busy                                 :           0  $        0.00 $
+load_balance() found balanced on cpu busy                        :           0  $        0.00 $
+load_balance() move task failed on cpu busy                      :           0  $        0.00 $
+imbalance sum on cpu busy                                        :           0
+pull_task() count on cpu busy                                    :           0
+pull_task() when target task was cache-hot on cpu busy           :           0
+load_balance() failed to find busier queue on cpu busy           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu busy           :           0  $        0.00 $
+*load_balance() success count on cpu busy                        :           0
+*avg task pulled per successful lb attempt (cpu busy)            :        0.00
+---------------------------------------- <Category newidle> ----------------------------------------
+load_balance() count on cpu newly idle                           :     1131446  $        0.13 $
+load_balance() found balanced on cpu newly idle                  :      197534  $        0.76 $
+load_balance() move task failed on cpu newly idle                :      429809  $        0.35 $
+imbalance sum on cpu newly idle                                  :     1311387
+pull_task() count on cpu newly idle                              :      823026
+pull_task() when target task was cache-hot on cpu newly idle     :          21
+load_balance() failed to find busier queue on cpu newly idle     :          91  $     1648.35 $
+load_balance() failed to find busier group on cpu newly idle     :      179505  $        0.84 $
+*load_balance() success count on cpu newly idle                  :      504103
+*avg task pulled per successful lb attempt (cpu newly idle)      :        1.63
+--------------------------------- <Category active_load_balance()> ---------------------------------
+active_load_balance() count                                      :           0
+active_load_balance() move task failed                           :           0
+active_load_balance() successfully moved a task                  :           0
+--------------------------------- <Category sched_balance_exec()> ----------------------------------
+sbe_count is not used                                            :           0
+sbe_balanced is not used                                         :           0
+sbe_pushed is not used                                           :           0
+--------------------------------- <Category sched_balance_fork()> ----------------------------------
+sbf_count is not used                                            :           0
+sbf_balanced is not used                                         :           0
+sbf_pushed is not used                                           :           0
+------------------------------------------ <Wakeup Info> -------------------------------------------
+try_to_wake_up() awoke a task that last ran on a diff cpu        :     1632337
+try_to_wake_up() moved task because cache-cold on own cpu        :      954131
+try_to_wake_up() started passive balancing                       :           0
+----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+CPU 4
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT   PCT_CHANGE
+----------------------------------------------------------------------------------------------------
+sched_yield() count                                              :       36462
+Legacy counter can be ignored                                    :           0
+schedule() called                                                :     4958466
+schedule() left the processor idle                               :     1349342  (    27.21% )
+try_to_wake_up() was called                                      :     2321274
+try_to_wake_up() was called to wake up the local cpu             :      779892  (    33.60% )
+total runtime by tasks on this processor (in jiffies)            : 445234732455
+total waittime by tasks on this processor (in jiffies)           : 632685781520  (   142.10% )
+total timeslices run on this cpu                                 :     3592402
+----------------------------------------------------------------------------------------------------
+CPU 4, DOMAIN 0 CPUS <0-15, >
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT    AVG_JIFFIES
+----------------------------------------- <Category idle> ------------------------------------------
+load_balance() count on cpu idle                                 :       17886  $        8.39 $
+load_balance() found balanced on cpu idle                        :       12953  $       11.58 $
+load_balance() move task failed on cpu idle                      :        3571  $       42.01 $
+imbalance sum on cpu idle                                        :        7500
+pull_task() count on cpu idle                                    :        1788
+pull_task() when target task was cache-hot on cpu idle           :           0
+load_balance() failed to find busier queue on cpu idle           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu idle           :       12953  $       11.58 $
+*load_balance() success count on cpu idle                        :        1362
+*avg task pulled per successful lb attempt (cpu idle)            :        1.31
+----------------------------------------- <Category busy> ------------------------------------------
+load_balance() count on cpu busy                                 :           0  $        0.00 $
+load_balance() found balanced on cpu busy                        :           0  $        0.00 $
+load_balance() move task failed on cpu busy                      :           0  $        0.00 $
+imbalance sum on cpu busy                                        :           0
+pull_task() count on cpu busy                                    :           0
+pull_task() when target task was cache-hot on cpu busy           :           0
+load_balance() failed to find busier queue on cpu busy           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu busy           :           0  $        0.00 $
+*load_balance() success count on cpu busy                        :           0
+*avg task pulled per successful lb attempt (cpu busy)            :        0.00
+---------------------------------------- <Category newidle> ----------------------------------------
+load_balance() count on cpu newly idle                           :     1520562  $        0.10 $
+load_balance() found balanced on cpu newly idle                  :      228910  $        0.66 $
+load_balance() move task failed on cpu newly idle                :      575367  $        0.26 $
+imbalance sum on cpu newly idle                                  :     1810097
+pull_task() count on cpu newly idle                              :     1156353
+pull_task() when target task was cache-hot on cpu newly idle     :          18
+load_balance() failed to find busier queue on cpu newly idle     :          89  $     1685.39 $
+load_balance() failed to find busier group on cpu newly idle     :      204889  $        0.73 $
+*load_balance() success count on cpu newly idle                  :      716285
+*avg task pulled per successful lb attempt (cpu newly idle)      :        1.61
+--------------------------------- <Category active_load_balance()> ---------------------------------
+active_load_balance() count                                      :           0
+active_load_balance() move task failed                           :           0
+active_load_balance() successfully moved a task                  :           0
+--------------------------------- <Category sched_balance_exec()> ----------------------------------
+sbe_count is not used                                            :           0
+sbe_balanced is not used                                         :           0
+sbe_pushed is not used                                           :           0
+--------------------------------- <Category sched_balance_fork()> ----------------------------------
+sbf_count is not used                                            :           0
+sbf_balanced is not used                                         :           0
+sbf_pushed is not used                                           :           0
+------------------------------------------ <Wakeup Info> -------------------------------------------
+try_to_wake_up() awoke a task that last ran on a diff cpu        :     1541380
+try_to_wake_up() moved task because cache-cold on own cpu        :      661197
+try_to_wake_up() started passive balancing                       :           0
+----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+CPU 5
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT   PCT_CHANGE
+----------------------------------------------------------------------------------------------------
+sched_yield() count                                              :       28258
+Legacy counter can be ignored                                    :           0
+schedule() called                                                :     4033836
+schedule() left the processor idle                               :     1053231  (    26.11% )
+try_to_wake_up() was called                                      :     2797670
+try_to_wake_up() was called to wake up the local cpu             :     1203557  (    43.02% )
+total runtime by tasks on this processor (in jiffies)            : 463818444995
+total waittime by tasks on this processor (in jiffies)           : 736991344407  (   158.90% )
+total timeslices run on this cpu                                 :     2969231
+----------------------------------------------------------------------------------------------------
+CPU 5, DOMAIN 0 CPUS <0-15, >
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT    AVG_JIFFIES
+----------------------------------------- <Category idle> ------------------------------------------
+load_balance() count on cpu idle                                 :       17399  $        8.62 $
+load_balance() found balanced on cpu idle                        :       13487  $       11.12 $
+load_balance() move task failed on cpu idle                      :        2892  $       51.87 $
+imbalance sum on cpu idle                                        :        8971
+pull_task() count on cpu idle                                    :        1290
+pull_task() when target task was cache-hot on cpu idle           :           0
+load_balance() failed to find busier queue on cpu idle           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu idle           :       13487  $       11.12 $
+*load_balance() success count on cpu idle                        :        1020
+*avg task pulled per successful lb attempt (cpu idle)            :        1.26
+----------------------------------------- <Category busy> ------------------------------------------
+load_balance() count on cpu busy                                 :           0  $        0.00 $
+load_balance() found balanced on cpu busy                        :           0  $        0.00 $
+load_balance() move task failed on cpu busy                      :           0  $        0.00 $
+imbalance sum on cpu busy                                        :           0
+pull_task() count on cpu busy                                    :           0
+pull_task() when target task was cache-hot on cpu busy           :           0
+load_balance() failed to find busier queue on cpu busy           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu busy           :           0  $        0.00 $
+*load_balance() success count on cpu busy                        :           0
+*avg task pulled per successful lb attempt (cpu busy)            :        0.00
+---------------------------------------- <Category newidle> ----------------------------------------
+load_balance() count on cpu newly idle                           :     1112108  $        0.13 $
+load_balance() found balanced on cpu newly idle                  :      189269  $        0.79 $
+load_balance() move task failed on cpu newly idle                :      420162  $        0.36 $
+imbalance sum on cpu newly idle                                  :     1304784
+pull_task() count on cpu newly idle                              :      825723
+pull_task() when target task was cache-hot on cpu newly idle     :          12
+load_balance() failed to find busier queue on cpu newly idle     :          90  $     1666.67 $
+load_balance() failed to find busier group on cpu newly idle     :      173200  $        0.87 $
+*load_balance() success count on cpu newly idle                  :      502677
+*avg task pulled per successful lb attempt (cpu newly idle)      :        1.64
+--------------------------------- <Category active_load_balance()> ---------------------------------
+active_load_balance() count                                      :           0
+active_load_balance() move task failed                           :           0
+active_load_balance() successfully moved a task                  :           0
+--------------------------------- <Category sched_balance_exec()> ----------------------------------
+sbe_count is not used                                            :           0
+sbe_balanced is not used                                         :           0
+sbe_pushed is not used                                           :           0
+--------------------------------- <Category sched_balance_fork()> ----------------------------------
+sbf_count is not used                                            :           0
+sbf_balanced is not used                                         :           0
+sbf_pushed is not used                                           :           0
+------------------------------------------ <Wakeup Info> -------------------------------------------
+try_to_wake_up() awoke a task that last ran on a diff cpu        :     1594107
+try_to_wake_up() moved task because cache-cold on own cpu        :      946184
+try_to_wake_up() started passive balancing                       :           0
+----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+CPU 6
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT   PCT_CHANGE
+----------------------------------------------------------------------------------------------------
+sched_yield() count                                              :       35493
+Legacy counter can be ignored                                    :           0
+schedule() called                                                :     4823236
+schedule() left the processor idle                               :     1293662  (    26.82% )
+try_to_wake_up() was called                                      :     2280817
+try_to_wake_up() was called to wake up the local cpu             :      772694  (    33.88% )
+total runtime by tasks on this processor (in jiffies)            : 444380110835
+total waittime by tasks on this processor (in jiffies)           : 633756764381  (   142.62% )
+total timeslices run on this cpu                                 :     3513213
+----------------------------------------------------------------------------------------------------
+CPU 6, DOMAIN 0 CPUS <0-15, >
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT    AVG_JIFFIES
+----------------------------------------- <Category idle> ------------------------------------------
+load_balance() count on cpu idle                                 :       18084  $        8.29 $
+load_balance() found balanced on cpu idle                        :       13045  $       11.50 $
+load_balance() move task failed on cpu idle                      :        3665  $       40.93 $
+imbalance sum on cpu idle                                        :        7812
+pull_task() count on cpu idle                                    :        1820
+pull_task() when target task was cache-hot on cpu idle           :           0
+load_balance() failed to find busier queue on cpu idle           :           2  $    75000.00 $
+load_balance() failed to find busier group on cpu idle           :       13043  $       11.50 $
+*load_balance() success count on cpu idle                        :        1374
+*avg task pulled per successful lb attempt (cpu idle)            :        1.32
+----------------------------------------- <Category busy> ------------------------------------------
+load_balance() count on cpu busy                                 :           0  $        0.00 $
+load_balance() found balanced on cpu busy                        :           0  $        0.00 $
+load_balance() move task failed on cpu busy                      :           0  $        0.00 $
+imbalance sum on cpu busy                                        :           0
+pull_task() count on cpu busy                                    :           0
+pull_task() when target task was cache-hot on cpu busy           :           0
+load_balance() failed to find busier queue on cpu busy           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu busy           :           0  $        0.00 $
+*load_balance() success count on cpu busy                        :           0
+*avg task pulled per successful lb attempt (cpu busy)            :        0.00
+---------------------------------------- <Category newidle> ----------------------------------------
+load_balance() count on cpu newly idle                           :     1492395  $        0.10 $
+load_balance() found balanced on cpu newly idle                  :      219810  $        0.68 $
+load_balance() move task failed on cpu newly idle                :      562133  $        0.27 $
+imbalance sum on cpu newly idle                                  :     1790517
+pull_task() count on cpu newly idle                              :     1151137
+pull_task() when target task was cache-hot on cpu newly idle     :          26
+load_balance() failed to find busier queue on cpu newly idle     :          84  $     1785.71 $
+load_balance() failed to find busier group on cpu newly idle     :      197004  $        0.76 $
+*load_balance() success count on cpu newly idle                  :      710452
+*avg task pulled per successful lb attempt (cpu newly idle)      :        1.62
+--------------------------------- <Category active_load_balance()> ---------------------------------
+active_load_balance() count                                      :           0
+active_load_balance() move task failed                           :           0
+active_load_balance() successfully moved a task                  :           0
+--------------------------------- <Category sched_balance_exec()> ----------------------------------
+sbe_count is not used                                            :           0
+sbe_balanced is not used                                         :           0
+sbe_pushed is not used                                           :           0
+--------------------------------- <Category sched_balance_fork()> ----------------------------------
+sbf_count is not used                                            :           0
+sbf_balanced is not used                                         :           0
+sbf_pushed is not used                                           :           0
+------------------------------------------ <Wakeup Info> -------------------------------------------
+try_to_wake_up() awoke a task that last ran on a diff cpu        :     1508123
+try_to_wake_up() moved task because cache-cold on own cpu        :      648791
+try_to_wake_up() started passive balancing                       :           0
+----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+CPU 7
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT   PCT_CHANGE
+----------------------------------------------------------------------------------------------------
+sched_yield() count                                              :       28663
+Legacy counter can be ignored                                    :           0
+schedule() called                                                :     3808505
+schedule() left the processor idle                               :      962493  (    25.27% )
+try_to_wake_up() was called                                      :     2983012
+try_to_wake_up() was called to wake up the local cpu             :     1351755  (    45.32% )
+total runtime by tasks on this processor (in jiffies)            : 467105115710
+total waittime by tasks on this processor (in jiffies)           : 779332454735  (   166.84% )
+total timeslices run on this cpu                                 :     2834223
+----------------------------------------------------------------------------------------------------
+CPU 7, DOMAIN 0 CPUS <0-15, >
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT    AVG_JIFFIES
+----------------------------------------- <Category idle> ------------------------------------------
+load_balance() count on cpu idle                                 :       16966  $        8.84 $
+load_balance() found balanced on cpu idle                        :       13398  $       11.20 $
+load_balance() move task failed on cpu idle                      :        2706  $       55.43 $
+imbalance sum on cpu idle                                        :       10589
+pull_task() count on cpu idle                                    :        1125
+pull_task() when target task was cache-hot on cpu idle           :           0
+load_balance() failed to find busier queue on cpu idle           :           1  $   150000.00 $
+load_balance() failed to find busier group on cpu idle           :       13397  $       11.20 $
+*load_balance() success count on cpu idle                        :         862
+*avg task pulled per successful lb attempt (cpu idle)            :        1.31
+----------------------------------------- <Category busy> ------------------------------------------
+load_balance() count on cpu busy                                 :           0  $        0.00 $
+load_balance() found balanced on cpu busy                        :           0  $        0.00 $
+load_balance() move task failed on cpu busy                      :           0  $        0.00 $
+imbalance sum on cpu busy                                        :           0
+pull_task() count on cpu busy                                    :           0
+pull_task() when target task was cache-hot on cpu busy           :           0
+load_balance() failed to find busier queue on cpu busy           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu busy           :           0  $        0.00 $
+*load_balance() success count on cpu busy                        :           0
+*avg task pulled per successful lb attempt (cpu busy)            :        0.00
+---------------------------------------- <Category newidle> ----------------------------------------
+load_balance() count on cpu newly idle                           :     1017585  $        0.15 $
+load_balance() found balanced on cpu newly idle                  :      176687  $        0.85 $
+load_balance() move task failed on cpu newly idle                :      382974  $        0.39 $
+imbalance sum on cpu newly idle                                  :     1190673
+pull_task() count on cpu newly idle                              :      753929
+pull_task() when target task was cache-hot on cpu newly idle     :          19
+load_balance() failed to find busier queue on cpu newly idle     :          95  $     1578.95 $
+load_balance() failed to find busier group on cpu newly idle     :      162896  $        0.92 $
+*load_balance() success count on cpu newly idle                  :      457924
+*avg task pulled per successful lb attempt (cpu newly idle)      :        1.65
+--------------------------------- <Category active_load_balance()> ---------------------------------
+active_load_balance() count                                      :           0
+active_load_balance() move task failed                           :           0
+active_load_balance() successfully moved a task                  :           0
+--------------------------------- <Category sched_balance_exec()> ----------------------------------
+sbe_count is not used                                            :           0
+sbe_balanced is not used                                         :           0
+sbe_pushed is not used                                           :           0
+--------------------------------- <Category sched_balance_fork()> ----------------------------------
+sbf_count is not used                                            :           0
+sbf_balanced is not used                                         :           0
+sbf_pushed is not used                                           :           0
+------------------------------------------ <Wakeup Info> -------------------------------------------
+try_to_wake_up() awoke a task that last ran on a diff cpu        :     1631256
+try_to_wake_up() moved task because cache-cold on own cpu        :     1051964
+try_to_wake_up() started passive balancing                       :           0
+----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+CPU 8
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT   PCT_CHANGE
+----------------------------------------------------------------------------------------------------
+sched_yield() count                                              :       34347
+Legacy counter can be ignored                                    :           0
+schedule() called                                                :     4984743
+schedule() left the processor idle                               :     1284761  (    25.77% )
+try_to_wake_up() was called                                      :     4277205
+try_to_wake_up() was called to wake up the local cpu             :     1199029  (    28.03% )
+total runtime by tasks on this processor (in jiffies)            : 451435690662
+total waittime by tasks on this processor (in jiffies)           : 669996702425  (   148.41% )
+total timeslices run on this cpu                                 :     3683512
+----------------------------------------------------------------------------------------------------
+CPU 8, DOMAIN 0 CPUS <0-15, >
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT    AVG_JIFFIES
+----------------------------------------- <Category idle> ------------------------------------------
+load_balance() count on cpu idle                                 :       17097  $        8.77 $
+load_balance() found balanced on cpu idle                        :       12611  $       11.89 $
+load_balance() move task failed on cpu idle                      :        3304  $       45.40 $
+imbalance sum on cpu idle                                        :        8115
+pull_task() count on cpu idle                                    :        1577
+pull_task() when target task was cache-hot on cpu idle           :           0
+load_balance() failed to find busier queue on cpu idle           :           1  $   150000.00 $
+load_balance() failed to find busier group on cpu idle           :       12610  $       11.90 $
+*load_balance() success count on cpu idle                        :        1182
+*avg task pulled per successful lb attempt (cpu idle)            :        1.33
+----------------------------------------- <Category busy> ------------------------------------------
+load_balance() count on cpu busy                                 :           1  $   150000.00 $
+load_balance() found balanced on cpu busy                        :           0  $        0.00 $
+load_balance() move task failed on cpu busy                      :           0  $        0.00 $
+imbalance sum on cpu busy                                        :         138
+pull_task() count on cpu busy                                    :           3
+pull_task() when target task was cache-hot on cpu busy           :           0
+load_balance() failed to find busier queue on cpu busy           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu busy           :           0  $        0.00 $
+*load_balance() success count on cpu busy                        :           1
+*avg task pulled per successful lb attempt (cpu busy)            :        3.00
+---------------------------------------- <Category newidle> ----------------------------------------
+load_balance() count on cpu newly idle                           :     1465154  $        0.10 $
+load_balance() found balanced on cpu newly idle                  :      218606  $        0.69 $
+load_balance() move task failed on cpu newly idle                :      550575  $        0.27 $
+imbalance sum on cpu newly idle                                  :     1742703
+pull_task() count on cpu newly idle                              :     1117577
+pull_task() when target task was cache-hot on cpu newly idle     :          27
+load_balance() failed to find busier queue on cpu newly idle     :          86  $     1744.19 $
+load_balance() failed to find busier group on cpu newly idle     :      198279  $        0.76 $
+*load_balance() success count on cpu newly idle                  :      695973
+*avg task pulled per successful lb attempt (cpu newly idle)      :        1.61
+--------------------------------- <Category active_load_balance()> ---------------------------------
+active_load_balance() count                                      :           0
+active_load_balance() move task failed                           :           0
+active_load_balance() successfully moved a task                  :           0
+--------------------------------- <Category sched_balance_exec()> ----------------------------------
+sbe_count is not used                                            :           0
+sbe_balanced is not used                                         :           0
+sbe_pushed is not used                                           :           0
+--------------------------------- <Category sched_balance_fork()> ----------------------------------
+sbf_count is not used                                            :           0
+sbf_balanced is not used                                         :           0
+sbf_pushed is not used                                           :           0
+------------------------------------------ <Wakeup Info> -------------------------------------------
+try_to_wake_up() awoke a task that last ran on a diff cpu        :     3078172
+try_to_wake_up() moved task because cache-cold on own cpu        :      933708
+try_to_wake_up() started passive balancing                       :           0
+----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+CPU 9
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT   PCT_CHANGE
+----------------------------------------------------------------------------------------------------
+sched_yield() count                                              :       26539
+Legacy counter can be ignored                                    :           0
+schedule() called                                                :     3716158
+schedule() left the processor idle                               :      948946  (    25.54% )
+try_to_wake_up() was called                                      :     3390356
+try_to_wake_up() was called to wake up the local cpu             :     1562420  (    46.08% )
+total runtime by tasks on this processor (in jiffies)            : 475209879425
+total waittime by tasks on this processor (in jiffies)           : 842123661289  (   177.21% )
+total timeslices run on this cpu                                 :     2757185
+----------------------------------------------------------------------------------------------------
+CPU 9, DOMAIN 0 CPUS <0-15, >
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT    AVG_JIFFIES
+----------------------------------------- <Category idle> ------------------------------------------
+load_balance() count on cpu idle                                 :       16390  $        9.15 $
+load_balance() found balanced on cpu idle                        :       13370  $       11.22 $
+load_balance() move task failed on cpu idle                      :        2373  $       63.21 $
+imbalance sum on cpu idle                                        :        7445
+pull_task() count on cpu idle                                    :         821
+pull_task() when target task was cache-hot on cpu idle           :           0
+load_balance() failed to find busier queue on cpu idle           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu idle           :       13369  $       11.22 $
+*load_balance() success count on cpu idle                        :         647
+*avg task pulled per successful lb attempt (cpu idle)            :        1.27
+----------------------------------------- <Category busy> ------------------------------------------
+load_balance() count on cpu busy                                 :           2  $    75000.00 $
+load_balance() found balanced on cpu busy                        :           2  $    75000.00 $
+load_balance() move task failed on cpu busy                      :           0  $        0.00 $
+imbalance sum on cpu busy                                        :           0
+pull_task() count on cpu busy                                    :           0
+pull_task() when target task was cache-hot on cpu busy           :           0
+load_balance() failed to find busier queue on cpu busy           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu busy           :           2  $    75000.00 $
+*load_balance() success count on cpu busy                        :           0
+*avg task pulled per successful lb attempt (cpu busy)            :        0.00
+---------------------------------------- <Category newidle> ----------------------------------------
+load_balance() count on cpu newly idle                           :      917049  $        0.16 $
+load_balance() found balanced on cpu newly idle                  :      174818  $        0.86 $
+load_balance() move task failed on cpu newly idle                :      346652  $        0.43 $
+imbalance sum on cpu newly idle                                  :     1044551
+pull_task() count on cpu newly idle                              :      650365
+pull_task() when target task was cache-hot on cpu newly idle     :          11
+load_balance() failed to find busier queue on cpu newly idle     :          64  $     2343.75 $
+load_balance() failed to find busier group on cpu newly idle     :      161481  $        0.93 $
+*load_balance() success count on cpu newly idle                  :      395579
+*avg task pulled per successful lb attempt (cpu newly idle)      :        1.64
+--------------------------------- <Category active_load_balance()> ---------------------------------
+active_load_balance() count                                      :           0
+active_load_balance() move task failed                           :           0
+active_load_balance() successfully moved a task                  :           0
+--------------------------------- <Category sched_balance_exec()> ----------------------------------
+sbe_count is not used                                            :           0
+sbe_balanced is not used                                         :           0
+sbe_pushed is not used                                           :           0
+--------------------------------- <Category sched_balance_fork()> ----------------------------------
+sbf_count is not used                                            :           0
+sbf_balanced is not used                                         :           0
+sbf_pushed is not used                                           :           0
+------------------------------------------ <Wakeup Info> -------------------------------------------
+try_to_wake_up() awoke a task that last ran on a diff cpu        :     1827936
+try_to_wake_up() moved task because cache-cold on own cpu        :     1254289
+try_to_wake_up() started passive balancing                       :           0
+----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+CPU 10
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT   PCT_CHANGE
+----------------------------------------------------------------------------------------------------
+sched_yield() count                                              :       24582
+Legacy counter can be ignored                                    :           0
+schedule() called                                                :     3756059
+schedule() left the processor idle                               :      924654  (    24.62% )
+try_to_wake_up() was called                                      :     4896762
+try_to_wake_up() was called to wake up the local cpu             :     1737470  (    35.48% )
+total runtime by tasks on this processor (in jiffies)            : 479505567256
+total waittime by tasks on this processor (in jiffies)           : 821096739753  (   171.24% )
+total timeslices run on this cpu                                 :     2821003
+----------------------------------------------------------------------------------------------------
+CPU 10, DOMAIN 0 CPUS <0-15, >
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT    AVG_JIFFIES
+----------------------------------------- <Category idle> ------------------------------------------
+load_balance() count on cpu idle                                 :       15764  $        9.52 $
+load_balance() found balanced on cpu idle                        :       12831  $       11.69 $
+load_balance() move task failed on cpu idle                      :        2278  $       65.85 $
+imbalance sum on cpu idle                                        :       10650
+pull_task() count on cpu idle                                    :         853
+pull_task() when target task was cache-hot on cpu idle           :           0
+load_balance() failed to find busier queue on cpu idle           :           1  $   150000.00 $
+load_balance() failed to find busier group on cpu idle           :       12830  $       11.69 $
+*load_balance() success count on cpu idle                        :         655
+*avg task pulled per successful lb attempt (cpu idle)            :        1.30
+----------------------------------------- <Category busy> ------------------------------------------
+load_balance() count on cpu busy                                 :           1  $   150000.00 $
+load_balance() found balanced on cpu busy                        :           1  $   150000.00 $
+load_balance() move task failed on cpu busy                      :           0  $        0.00 $
+imbalance sum on cpu busy                                        :           0
+pull_task() count on cpu busy                                    :           0
+pull_task() when target task was cache-hot on cpu busy           :           0
+load_balance() failed to find busier queue on cpu busy           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu busy           :           1  $   150000.00 $
+*load_balance() success count on cpu busy                        :           0
+*avg task pulled per successful lb attempt (cpu busy)            :        0.00
+---------------------------------------- <Category newidle> ----------------------------------------
+load_balance() count on cpu newly idle                           :      921940  $        0.16 $
+load_balance() found balanced on cpu newly idle                  :      169124  $        0.89 $
+load_balance() move task failed on cpu newly idle                :      350242  $        0.43 $
+imbalance sum on cpu newly idle                                  :     1052859
+pull_task() count on cpu newly idle                              :      656024
+pull_task() when target task was cache-hot on cpu newly idle     :           9
+load_balance() failed to find busier queue on cpu newly idle     :          72  $     2083.33 $
+load_balance() failed to find busier group on cpu newly idle     :      157381  $        0.95 $
+*load_balance() success count on cpu newly idle                  :      402574
+*avg task pulled per successful lb attempt (cpu newly idle)      :        1.63
+--------------------------------- <Category active_load_balance()> ---------------------------------
+active_load_balance() count                                      :           0
+active_load_balance() move task failed                           :           0
+active_load_balance() successfully moved a task                  :           0
+--------------------------------- <Category sched_balance_exec()> ----------------------------------
+sbe_count is not used                                            :           0
+sbe_balanced is not used                                         :           0
+sbe_pushed is not used                                           :           0
+--------------------------------- <Category sched_balance_fork()> ----------------------------------
+sbf_count is not used                                            :           0
+sbf_balanced is not used                                         :           0
+sbf_pushed is not used                                           :           0
+------------------------------------------ <Wakeup Info> -------------------------------------------
+try_to_wake_up() awoke a task that last ran on a diff cpu        :     3159284
+try_to_wake_up() moved task because cache-cold on own cpu        :     1429053
+try_to_wake_up() started passive balancing                       :           0
+----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+CPU 11
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT   PCT_CHANGE
+----------------------------------------------------------------------------------------------------
+sched_yield() count                                              :       25357
+Legacy counter can be ignored                                    :           0
+schedule() called                                                :     3627740
+schedule() left the processor idle                               :      923717  (    25.46% )
+try_to_wake_up() was called                                      :     3255100
+try_to_wake_up() was called to wake up the local cpu             :     1469514  (    45.14% )
+total runtime by tasks on this processor (in jiffies)            : 477768141585
+total waittime by tasks on this processor (in jiffies)           : 817221472310  (   171.05% )
+total timeslices run on this cpu                                 :     2694401
+----------------------------------------------------------------------------------------------------
+CPU 11, DOMAIN 0 CPUS <0-15, >
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT    AVG_JIFFIES
+----------------------------------------- <Category idle> ------------------------------------------
+load_balance() count on cpu idle                                 :       15964  $        9.40 $
+load_balance() found balanced on cpu idle                        :       12957  $       11.58 $
+load_balance() move task failed on cpu idle                      :        2367  $       63.37 $
+imbalance sum on cpu idle                                        :        8058
+pull_task() count on cpu idle                                    :         858
+pull_task() when target task was cache-hot on cpu idle           :           0
+load_balance() failed to find busier queue on cpu idle           :           1  $   150000.00 $
+load_balance() failed to find busier group on cpu idle           :       12956  $       11.58 $
+*load_balance() success count on cpu idle                        :         640
+*avg task pulled per successful lb attempt (cpu idle)            :        1.34
+----------------------------------------- <Category busy> ------------------------------------------
+load_balance() count on cpu busy                                 :           3  $    50000.00 $
+load_balance() found balanced on cpu busy                        :           1  $   150000.00 $
+load_balance() move task failed on cpu busy                      :           1  $   150000.00 $
+imbalance sum on cpu busy                                        :         274
+pull_task() count on cpu busy                                    :           7
+pull_task() when target task was cache-hot on cpu busy           :           0
+load_balance() failed to find busier queue on cpu busy           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu busy           :           1  $   150000.00 $
+*load_balance() success count on cpu busy                        :           1
+*avg task pulled per successful lb attempt (cpu busy)            :        7.00
+---------------------------------------- <Category newidle> ----------------------------------------
+load_balance() count on cpu newly idle                           :      919120  $        0.16 $
+load_balance() found balanced on cpu newly idle                  :      169340  $        0.89 $
+load_balance() move task failed on cpu newly idle                :      350409  $        0.43 $
+imbalance sum on cpu newly idle                                  :     1055463
+pull_task() count on cpu newly idle                              :      657711
+pull_task() when target task was cache-hot on cpu newly idle     :          11
+load_balance() failed to find busier queue on cpu newly idle     :          90  $     1666.67 $
+load_balance() failed to find busier group on cpu newly idle     :      156010  $        0.96 $
+*load_balance() success count on cpu newly idle                  :      399371
+*avg task pulled per successful lb attempt (cpu newly idle)      :        1.65
+--------------------------------- <Category active_load_balance()> ---------------------------------
+active_load_balance() count                                      :           0
+active_load_balance() move task failed                           :           0
+active_load_balance() successfully moved a task                  :           0
+--------------------------------- <Category sched_balance_exec()> ----------------------------------
+sbe_count is not used                                            :           0
+sbe_balanced is not used                                         :           0
+sbe_pushed is not used                                           :           0
+--------------------------------- <Category sched_balance_fork()> ----------------------------------
+sbf_count is not used                                            :           0
+sbf_balanced is not used                                         :           0
+sbf_pushed is not used                                           :           0
+------------------------------------------ <Wakeup Info> -------------------------------------------
+try_to_wake_up() awoke a task that last ran on a diff cpu        :     1785583
+try_to_wake_up() moved task because cache-cold on own cpu        :     1220796
+try_to_wake_up() started passive balancing                       :           0
+----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+CPU 12
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT   PCT_CHANGE
+----------------------------------------------------------------------------------------------------
+sched_yield() count                                              :       37865
+Legacy counter can be ignored                                    :           0
+schedule() called                                                :     4787202
+schedule() left the processor idle                               :     1267376  (    26.47% )
+try_to_wake_up() was called                                      :     2147143
+try_to_wake_up() was called to wake up the local cpu             :      732674  (    34.12% )
+total runtime by tasks on this processor (in jiffies)            : 451275111662
+total waittime by tasks on this processor (in jiffies)           : 632833146518  (   140.23% )
+total timeslices run on this cpu                                 :     3501277
+----------------------------------------------------------------------------------------------------
+CPU 12, DOMAIN 0 CPUS <0-15, >
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT    AVG_JIFFIES
+----------------------------------------- <Category idle> ------------------------------------------
+load_balance() count on cpu idle                                 :       16876  $        8.89 $
+load_balance() found balanced on cpu idle                        :       12627  $       11.88 $
+load_balance() move task failed on cpu idle                      :        3222  $       46.55 $
+imbalance sum on cpu idle                                        :        6102
+pull_task() count on cpu idle                                    :        1381
+pull_task() when target task was cache-hot on cpu idle           :           0
+load_balance() failed to find busier queue on cpu idle           :           1  $   150000.00 $
+load_balance() failed to find busier group on cpu idle           :       12626  $       11.88 $
+*load_balance() success count on cpu idle                        :        1027
+*avg task pulled per successful lb attempt (cpu idle)            :        1.34
+----------------------------------------- <Category busy> ------------------------------------------
+load_balance() count on cpu busy                                 :           1  $   150000.00 $
+load_balance() found balanced on cpu busy                        :           1  $   150000.00 $
+load_balance() move task failed on cpu busy                      :           0  $        0.00 $
+imbalance sum on cpu busy                                        :           0
+pull_task() count on cpu busy                                    :           0
+pull_task() when target task was cache-hot on cpu busy           :           0
+load_balance() failed to find busier queue on cpu busy           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu busy           :           1  $   150000.00 $
+*load_balance() success count on cpu busy                        :           0
+*avg task pulled per successful lb attempt (cpu busy)            :        0.00
+---------------------------------------- <Category newidle> ----------------------------------------
+load_balance() count on cpu newly idle                           :     1487776  $        0.10 $
+load_balance() found balanced on cpu newly idle                  :      215896  $        0.69 $
+load_balance() move task failed on cpu newly idle                :      559177  $        0.27 $
+imbalance sum on cpu newly idle                                  :     1787553
+pull_task() count on cpu newly idle                              :     1152123
+pull_task() when target task was cache-hot on cpu newly idle     :          12
+load_balance() failed to find busier queue on cpu newly idle     :          81  $     1851.85 $
+load_balance() failed to find busier group on cpu newly idle     :      192712  $        0.78 $
+*load_balance() success count on cpu newly idle                  :      712703
+*avg task pulled per successful lb attempt (cpu newly idle)      :        1.62
+--------------------------------- <Category active_load_balance()> ---------------------------------
+active_load_balance() count                                      :           0
+active_load_balance() move task failed                           :           0
+active_load_balance() successfully moved a task                  :           0
+--------------------------------- <Category sched_balance_exec()> ----------------------------------
+sbe_count is not used                                            :           0
+sbe_balanced is not used                                         :           0
+sbe_pushed is not used                                           :           0
+--------------------------------- <Category sched_balance_fork()> ----------------------------------
+sbf_count is not used                                            :           0
+sbf_balanced is not used                                         :           0
+sbf_pushed is not used                                           :           0
+------------------------------------------ <Wakeup Info> -------------------------------------------
+try_to_wake_up() awoke a task that last ran on a diff cpu        :     1414470
+try_to_wake_up() moved task because cache-cold on own cpu        :      629901
+try_to_wake_up() started passive balancing                       :           0
+----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+CPU 13
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT   PCT_CHANGE
+----------------------------------------------------------------------------------------------------
+sched_yield() count                                              :       36935
+Legacy counter can be ignored                                    :           0
+schedule() called                                                :     4859631
+schedule() left the processor idle                               :     1288577  (    26.52% )
+try_to_wake_up() was called                                      :     2220537
+try_to_wake_up() was called to wake up the local cpu             :      765011  (    34.45% )
+total runtime by tasks on this processor (in jiffies)            : 447008373364
+total waittime by tasks on this processor (in jiffies)           : 644313948598  (   144.14% )
+total timeslices run on this cpu                                 :     3554101
+----------------------------------------------------------------------------------------------------
+CPU 13, DOMAIN 0 CPUS <0-15, >
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT    AVG_JIFFIES
+----------------------------------------- <Category idle> ------------------------------------------
+load_balance() count on cpu idle                                 :       17605  $        8.52 $
+load_balance() found balanced on cpu idle                        :       13000  $       11.54 $
+load_balance() move task failed on cpu idle                      :        3462  $       43.33 $
+imbalance sum on cpu idle                                        :        8058
+pull_task() count on cpu idle                                    :        1528
+pull_task() when target task was cache-hot on cpu idle           :           0
+load_balance() failed to find busier queue on cpu idle           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu idle           :       13000  $       11.54 $
+*load_balance() success count on cpu idle                        :        1143
+*avg task pulled per successful lb attempt (cpu idle)            :        1.34
+----------------------------------------- <Category busy> ------------------------------------------
+load_balance() count on cpu busy                                 :           0  $        0.00 $
+load_balance() found balanced on cpu busy                        :           0  $        0.00 $
+load_balance() move task failed on cpu busy                      :           0  $        0.00 $
+imbalance sum on cpu busy                                        :           0
+pull_task() count on cpu busy                                    :           0
+pull_task() when target task was cache-hot on cpu busy           :           0
+load_balance() failed to find busier queue on cpu busy           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu busy           :           0  $        0.00 $
+*load_balance() success count on cpu busy                        :           0
+*avg task pulled per successful lb attempt (cpu busy)            :        0.00
+---------------------------------------- <Category newidle> ----------------------------------------
+load_balance() count on cpu newly idle                           :     1496899  $        0.10 $
+load_balance() found balanced on cpu newly idle                  :      220946  $        0.68 $
+load_balance() move task failed on cpu newly idle                :      562184  $        0.27 $
+imbalance sum on cpu newly idle                                  :     1791386
+pull_task() count on cpu newly idle                              :     1153019
+pull_task() when target task was cache-hot on cpu newly idle     :          25
+load_balance() failed to find busier queue on cpu newly idle     :          66  $     2272.73 $
+load_balance() failed to find busier group on cpu newly idle     :      196834  $        0.76 $
+*load_balance() success count on cpu newly idle                  :      713769
+*avg task pulled per successful lb attempt (cpu newly idle)      :        1.62
+--------------------------------- <Category active_load_balance()> ---------------------------------
+active_load_balance() count                                      :           0
+active_load_balance() move task failed                           :           0
+active_load_balance() successfully moved a task                  :           0
+--------------------------------- <Category sched_balance_exec()> ----------------------------------
+sbe_count is not used                                            :           0
+sbe_balanced is not used                                         :           0
+sbe_pushed is not used                                           :           0
+--------------------------------- <Category sched_balance_fork()> ----------------------------------
+sbf_count is not used                                            :           0
+sbf_balanced is not used                                         :           0
+sbf_pushed is not used                                           :           0
+------------------------------------------ <Wakeup Info> -------------------------------------------
+try_to_wake_up() awoke a task that last ran on a diff cpu        :     1455526
+try_to_wake_up() moved task because cache-cold on own cpu        :      651185
+try_to_wake_up() started passive balancing                       :           0
+----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+CPU 14
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT   PCT_CHANGE
+----------------------------------------------------------------------------------------------------
+sched_yield() count                                              :       28682
+Legacy counter can be ignored                                    :           0
+schedule() called                                                :     3826992
+schedule() left the processor idle                               :      964308  (    25.20% )
+try_to_wake_up() was called                                      :     2965664
+try_to_wake_up() was called to wake up the local cpu             :     1326625  (    44.73% )
+total runtime by tasks on this processor (in jiffies)            : 467833133023
+total waittime by tasks on this processor (in jiffies)           : 787049649386  (   168.23% )
+total timeslices run on this cpu                                 :     2851194
+----------------------------------------------------------------------------------------------------
+CPU 14, DOMAIN 0 CPUS <0-15, >
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT    AVG_JIFFIES
+----------------------------------------- <Category idle> ------------------------------------------
+load_balance() count on cpu idle                                 :       16816  $        8.92 $
+load_balance() found balanced on cpu idle                        :       13536  $       11.08 $
+load_balance() move task failed on cpu idle                      :        2527  $       59.36 $
+imbalance sum on cpu idle                                        :        6252
+pull_task() count on cpu idle                                    :         963
+pull_task() when target task was cache-hot on cpu idle           :           0
+load_balance() failed to find busier queue on cpu idle           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu idle           :       13536  $       11.08 $
+*load_balance() success count on cpu idle                        :         753
+*avg task pulled per successful lb attempt (cpu idle)            :        1.28
+----------------------------------------- <Category busy> ------------------------------------------
+load_balance() count on cpu busy                                 :           1  $   150000.00 $
+load_balance() found balanced on cpu busy                        :           0  $        0.00 $
+load_balance() move task failed on cpu busy                      :           1  $   150000.00 $
+imbalance sum on cpu busy                                        :         174
+pull_task() count on cpu busy                                    :           0
+pull_task() when target task was cache-hot on cpu busy           :           0
+load_balance() failed to find busier queue on cpu busy           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu busy           :           0  $        0.00 $
+*load_balance() success count on cpu busy                        :           0
+*avg task pulled per successful lb attempt (cpu busy)            :        0.00
+---------------------------------------- <Category newidle> ----------------------------------------
+load_balance() count on cpu newly idle                           :     1024083  $        0.15 $
+load_balance() found balanced on cpu newly idle                  :      177526  $        0.84 $
+load_balance() move task failed on cpu newly idle                :      385419  $        0.39 $
+imbalance sum on cpu newly idle                                  :     1197666
+pull_task() count on cpu newly idle                              :      758143
+pull_task() when target task was cache-hot on cpu newly idle     :          17
+load_balance() failed to find busier queue on cpu newly idle     :          72  $     2083.33 $
+load_balance() failed to find busier group on cpu newly idle     :      163601  $        0.92 $
+*load_balance() success count on cpu newly idle                  :      461138
+*avg task pulled per successful lb attempt (cpu newly idle)      :        1.64
+--------------------------------- <Category active_load_balance()> ---------------------------------
+active_load_balance() count                                      :           0
+active_load_balance() move task failed                           :           0
+active_load_balance() successfully moved a task                  :           0
+--------------------------------- <Category sched_balance_exec()> ----------------------------------
+sbe_count is not used                                            :           0
+sbe_balanced is not used                                         :           0
+sbe_pushed is not used                                           :           0
+--------------------------------- <Category sched_balance_fork()> ----------------------------------
+sbf_count is not used                                            :           0
+sbf_balanced is not used                                         :           0
+sbf_pushed is not used                                           :           0
+------------------------------------------ <Wakeup Info> -------------------------------------------
+try_to_wake_up() awoke a task that last ran on a diff cpu        :     1639037
+try_to_wake_up() moved task because cache-cold on own cpu        :     1063545
+try_to_wake_up() started passive balancing                       :           0
+----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+CPU 15
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT   PCT_CHANGE
+----------------------------------------------------------------------------------------------------
+sched_yield() count                                              :       37768
+Legacy counter can be ignored                                    :           0
+schedule() called                                                :     4751252
+schedule() left the processor idle                               :     1249455  (    26.30% )
+try_to_wake_up() was called                                      :     2207568
+try_to_wake_up() was called to wake up the local cpu             :      762068  (    34.52% )
+total runtime by tasks on this processor (in jiffies)            : 445189468278
+total waittime by tasks on this processor (in jiffies)           : 646091216497  (   145.13% )
+total timeslices run on this cpu                                 :     3483614
+----------------------------------------------------------------------------------------------------
+CPU 15, DOMAIN 0 CPUS <0-15, >
+----------------------------------------------------------------------------------------------------
+DESC                                                                     COUNT    AVG_JIFFIES
+----------------------------------------- <Category idle> ------------------------------------------
+load_balance() count on cpu idle                                 :       17460  $        8.59 $
+load_balance() found balanced on cpu idle                        :       13022  $       11.52 $
+load_balance() move task failed on cpu idle                      :        3401  $       44.10 $
+imbalance sum on cpu idle                                        :        7015
+pull_task() count on cpu idle                                    :        1366
+pull_task() when target task was cache-hot on cpu idle           :           0
+load_balance() failed to find busier queue on cpu idle           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu idle           :       13022  $       11.52 $
+*load_balance() success count on cpu idle                        :        1037
+*avg task pulled per successful lb attempt (cpu idle)            :        1.32
+----------------------------------------- <Category busy> ------------------------------------------
+load_balance() count on cpu busy                                 :           0  $        0.00 $
+load_balance() found balanced on cpu busy                        :           0  $        0.00 $
+load_balance() move task failed on cpu busy                      :           0  $        0.00 $
+imbalance sum on cpu busy                                        :           0
+pull_task() count on cpu busy                                    :           0
+pull_task() when target task was cache-hot on cpu busy           :           0
+load_balance() failed to find busier queue on cpu busy           :           0  $        0.00 $
+load_balance() failed to find busier group on cpu busy           :           0  $        0.00 $
+*load_balance() success count on cpu busy                        :           0
+*avg task pulled per successful lb attempt (cpu busy)            :        0.00
+---------------------------------------- <Category newidle> ----------------------------------------
+load_balance() count on cpu newly idle                           :     1477696  $        0.10 $
+load_balance() found balanced on cpu newly idle                  :      213237  $        0.70 $
+load_balance() move task failed on cpu newly idle                :      556474  $        0.27 $
+imbalance sum on cpu newly idle                                  :     1776293
+pull_task() count on cpu newly idle                              :     1144135
+pull_task() when target task was cache-hot on cpu newly idle     :          26
+load_balance() failed to find busier queue on cpu newly idle     :          69  $     2173.91 $
+load_balance() failed to find busier group on cpu newly idle     :      190537  $        0.79 $
+*load_balance() success count on cpu newly idle                  :      707985
+*avg task pulled per successful lb attempt (cpu newly idle)      :        1.62
+--------------------------------- <Category active_load_balance()> ---------------------------------
+active_load_balance() count                                      :           0
+active_load_balance() move task failed                           :           0
+active_load_balance() successfully moved a task                  :           0
+--------------------------------- <Category sched_balance_exec()> ----------------------------------
+sbe_count is not used                                            :           0
+sbe_balanced is not used                                         :           0
+sbe_pushed is not used                                           :           0
+--------------------------------- <Category sched_balance_fork()> ----------------------------------
+sbf_count is not used                                            :           0
+sbf_balanced is not used                                         :           0
+sbf_pushed is not used                                           :           0
+------------------------------------------ <Wakeup Info> -------------------------------------------
+try_to_wake_up() awoke a task that last ran on a diff cpu        :     1445499
+try_to_wake_up() moved task because cache-cold on own cpu        :      648844
+try_to_wake_up() started passive balancing                       :           0
+----------------------------------------------------------------------------------------------------
