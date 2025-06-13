@@ -29,8 +29,25 @@ function mysql:install:sut() {
         jemalloc) repro:package:install libjemalloc2;;
         tcmalloc*) repro:package:install google-perftools;;
     esac
-    MYSQL_MALLOC_PATH=$(find /usr/lib/ -name "lib${MYSQL_MALLOC}\.so[.0-9]*" -print -quit)
     mysql:create_and_mount_raid "$@"
+}
+
+function mysql:install:loadgen() {
+    repro:debug Loadgen install
+    repro:package:update
+    repro:package:install tclsh wish tcl-thread mysqltcl libmysqlclient-dev postgresql-client-common
+    repro:cmd <<-EOT
+        [ -d ${HAMMERDB_PATH} ] || git clone --branch v${HAMMERDB_VERSION} ${HAMMERDB_REPO} ${HAMMERDB_PATH}
+        mkdir -p ${HAMMERDB_PATH}/bin
+        ln -sf /bin/tclsh ${HAMMERDB_PATH}/bin/tclsh8.6
+        sudo sysctl net.core.somaxconn=4096
+        sudo sysctl net.ipv4.tcp_max_syn_backlog=4096
+        sudo sysctl net.ipv4.ip_local_port_range="1024 65000"
+EOT
+}
+
+function mysql:configure:sut() {
+    MYSQL_MALLOC_PATH=$(find /usr/lib/ -name "lib${MYSQL_MALLOC}\.so[.0-9]*" -print -quit)
     repro:cmd <<-EOT
         [ -L /tmp/mysql.sock ] || sudo ln -sf \$(mysql_config --socket) /tmp/mysql.sock  # needed if HammerDB is running on the SUT
 
@@ -76,23 +93,7 @@ function mysql:install:sut() {
         done
         sudo mysql --execute "FLUSH PRIVILEGES;"
 EOT
-}
 
-function mysql:install:loadgen() {
-    repro:debug Loadgen install
-    repro:package:update
-    repro:package:install tclsh wish tcl-thread mysqltcl libmysqlclient-dev postgresql-client-common
-    repro:cmd <<-EOT
-        [ -d ${HAMMERDB_PATH} ] || git clone --branch v${HAMMERDB_VERSION} ${HAMMERDB_REPO} ${HAMMERDB_PATH}
-        mkdir -p ${HAMMERDB_PATH}/bin
-        ln -sf /bin/tclsh ${HAMMERDB_PATH}/bin/tclsh8.6
-        sudo sysctl net.core.somaxconn=4096
-        sudo sysctl net.ipv4.tcp_max_syn_backlog=4096
-        sudo sysctl net.ipv4.ip_local_port_range="1024 65000"
-EOT
-}
-
-function mysql:configure:sut() {
     repro:wait_for_ldg nproc $(nproc)
 }
 
