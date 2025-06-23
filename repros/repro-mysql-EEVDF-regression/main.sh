@@ -59,7 +59,7 @@ function scenario:build_kernel() {
     build_args+=" CONFIG_HZ_100= CONFIG_HZ_250=y CONFIG_HZ_300= CONFIG_HZ_1000= CONFIG_HZ=250 $*"
     $SCENARIO_REUSE_BUILT_KERNELS && reuse_build="--reuse-build"
     pushd "${REPROCFG_TMP}"
-    repro:cmd "${REPROCFG_ROOT}/util/kernel_from_src.sh" --install $reuse_build "--version=$tag" "--patch-dir=${SCENARIO_PATH}/patches" $build_args
+    repro:cmd "${REPROCFG_ROOT}/util/kernel_from_src.sh" --offline-mode --install $reuse_build "--version=$tag" "--patch-dir=${SCENARIO_PATH}/patches" $build_args
     popd
 }
 
@@ -77,6 +77,16 @@ function scenario:require_kernel() {
     fi
     msg+=" After rebooting, rerun this repro scenario to continue."
     repro:fatal "$msg"
+}
+
+# these are done as part of the run step loop
+unset -f scenario:configure scenario:cleanup
+
+function scenario:install:sut() {
+    scenario:install
+    pushd "${REPROCFG_TMP}"
+    repro:cmd "${REPROCFG_ROOT}/util/kernel_from_src.sh" --setup-only
+    popd
 }
 
 # run iterations of a mysql test; args: <title> <data_label> <kernel_version> <config> <slice_ms> [scheduler_feature [...]] [-- workload_args]
@@ -117,7 +127,7 @@ function scenario:run_mysql()
             perf sched stats report -i "perf-${it_label}.data" >"perf-${it_label}.report"
             repro:cmd sed -n '"/CPU 0/q;p"' '"perf-${it_label}.report"'
         }&
-        repro:run mysql SUT "$@"
+        repro:run mysql SUT "$@" configure run cleanup
     done
 }
 
@@ -167,7 +177,7 @@ function scenario:run:loadgen()
         tag=$(repro:wait_for_sut "STEP")
         [ "${tag:-DONE}" = "DONE" ] && break
         repro:info "Running $tag test"
-        WORKLOAD_RESULTS_FILE="${SCENARIO_RESULTS_PATH}/results-${tag}.json" repro:run mysql LDG "$@"
+        WORKLOAD_RESULTS_FILE="${SCENARIO_RESULTS_PATH}/results-${tag}.json" repro:run mysql LDG "$@" configure run results cleanup
     done
 }
 

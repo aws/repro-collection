@@ -12,6 +12,21 @@ function scenario:workloads()
 {
     : no dependencies by default
 }
+function scenario:install() {
+    scenario:run_workload_step install
+}
+function scenario:configure() {
+    scenario:run_workload_step configure
+}
+function scenario:run() {
+    scenario:run_workload_step run
+}
+function scenario:results() {
+    scenario:run_workload_step results
+}
+function scenario:cleanup() {
+    scenario:run_workload_step cleanup
+}
 
 . "$(dirname "${BASH_SOURCE[0]}")/common/repromain.sh" ""
 REPROCFG_SCENARIO_MODE=true

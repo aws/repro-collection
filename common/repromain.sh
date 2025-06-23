@@ -462,6 +462,17 @@ function repro:scenario() {
 }
 REPROCFG_SCENARIO_MODE=false
 
+# Run a given step through all of the scenario's workloads which implement the step
+function scenario:run_workload_step() {
+    local workload step=$1
+    for workload in $(scenario:workloads); do
+        [[ $(REPRO_NAME=$workload repro:default_steps) =~ (^| )$step($| ) ]] && {
+            repro:run $workload $REPRO_MODE $step || return $?
+        }
+    done
+    return 0
+}
+
 function repro:include_workloads() {
     for b; do
         [ -z "$b" ] && continue

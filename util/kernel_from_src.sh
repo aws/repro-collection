@@ -1,68 +1,90 @@
 #!/bin/bash
 
 [ "$1" = "--help" ] && {
-    echo "Usage: $0 [--install] [--version=<kernel_tag>] [--path=<linux_dir>] [--repo=<git_repo>] [--reuse-build] [<config_option>=<value> [...]]"
-    echo "Build the Linux kernel (optionally download from repo and activate it after building)"
+    echo "Usage: $0 [--install] [--version=<kernel_tag>] [--path=<linux_dir>] [--repo=<git_repo>] [--reuse-build] [--offline-mode] [<config_option>=<value> [...]]"
+    echo "       $0 --setup-only"
+    echo "       $0 --help"
+    echo "Build the Linux kernel (optionally download from repo and activate it after building)."
+    echo "In offline mode, no packages are installed, and the git repo is not refreshed before building."
+    echo "In setup only mode, packages are installed and the repo is cloned / updated, but nothing is built."
     echo "E.g.: $0 --install --version=v6.12 CONFIG_SCHED_DEBUG=y CONFIG_PROC_SYSCTL=y CONFIG_SYSCTL=y 2>&1 | tee build.log"
     exit 0
 }
+: ${setup_only:=false}     # default: don't quit after installing dependencies and cloning/updating repo
+: ${offline_mode:=false}   # default: install packages and update repo before building
 : ${install_kernel:=false} # default: just build the kernel, don't install it
 : ${use_suse_repo:=false}  # default: use mainline Linux repo, not SUSE (only for SUSE hosts)
 : ${reuse_build:=false}    # default: if the given tag is already built, assume the config hasn't changed and reuse the kernel
 
+function err_exit() {
+    echo "FATAL: $@" >&2
+    exit 1
+}
+
 while [ $# -gt 0 ]; do
     case "$1" in
-        --install) install_kernel=true;;
+        --setup-only) setup_only=true; offline_mode=false;;
+        --offline-mode) offline_mode=true; setup_only=false;;
+        --install) install_kernel=true; setup_only=false;;
         --path=*) LINUX_DIR="${1#*=}";;
         --repo=*) LINUX_REPO="${1#*=}";;
         --version=*) LINUX_TAG="${1#*=}";;
         --patch-dir=*) LINUX_PATCHDIR="${1#*=}";;
         --reuse-build) reuse_build=true;;
         --) shift; break;;
-        --*) echo "Unknown argument: $1"; exit 1;;
+        --*) err_exit "Unknown argument: $1";;
         *) break;;
     esac
     shift
 done
 
-if type -t apt-get >/dev/null; then
-    sudo apt-get update -y
-    sudo apt-get upgrade -y
-    sudo apt-get -y install build-essential flex bison fakeroot ncurses-dev xz-utils libssl-dev bc libelf-dev python3 python3-dev pkg-config
-    sudo apt-get -y install dwarves libdwarf-dev libdw-dev binutils-dev libcap-dev libelf-dev libnuma-dev libssl-dev libunwind-dev zlib1g-dev liblzma-dev libaio-dev libtraceevent-dev debuginfod libpfm4-dev libslang2-dev systemtap-sdt-dev libperl-dev libbabeltrace-dev libiberty-dev libzstd-dev libzstd1
-elif type -t zypper >/dev/null; then
-    sudo zypper --non-interactive update
-    sudo zypper --non-interactive install -y -t pattern devel_basis  && \
-    sudo zypper --non-interactive install -y -t pattern devel_kernel || \
-    sudo zypper --non-interactive install -y -t pattern Basis-Devel
-    #sudo zypper --non-interactive install -y git gcc flex bison ncurses-devel openssl-devel make  # TODO: fix build on older SUSE hosts
-elif type -t yum >/dev/null; then
-    sudo yum update -y
-    sudo yum upgrade -y
-    sudo yum -y groupinstall 'Development Tools'
-    sudo yum -y install flex bison ncurses-devel elfutils-libelf-devel openssl-devel dwarves
-else
-    echo >&2 "Unknown package manager"; exit 1
-fi
+$offline_mode || {
+    if type -t apt-get >/dev/null; then
+        sudo apt-get update -y
+        sudo apt-get upgrade -y
+        sudo apt-get -y install build-essential flex bison fakeroot ncurses-dev xz-utils libssl-dev bc libelf-dev python3 python3-dev pkg-config
+        sudo apt-get -y install dwarves libdwarf-dev libdw-dev binutils-dev libcap-dev libelf-dev libnuma-dev libssl-dev libunwind-dev zlib1g-dev liblzma-dev libaio-dev libtraceevent-dev debuginfod libpfm4-dev libslang2-dev systemtap-sdt-dev libperl-dev libbabeltrace-dev libiberty-dev libzstd-dev libzstd1
+    elif type -t zypper >/dev/null; then
+        sudo zypper --non-interactive update
+        sudo zypper --non-interactive install -y -t pattern devel_basis  && \
+        sudo zypper --non-interactive install -y -t pattern devel_kernel || \
+        sudo zypper --non-interactive install -y -t pattern Basis-Devel
+        #sudo zypper --non-interactive install -y git gcc flex bison ncurses-devel openssl-devel make  # TODO: fix build on older SUSE hosts
+    elif type -t yum >/dev/null; then
+        sudo yum update -y
+        sudo yum upgrade -y
+        sudo yum -y groupinstall 'Development Tools'
+        sudo yum -y install flex bison ncurses-devel elfutils-libelf-devel openssl-devel dwarves
+    else
+        err_exit "Unknown package manager"
+    fi
+}
 
 [ -z "$LINUX_DIR" ] && for LINUX_DIR in . linux-next linux; do
     [ -f $LINUX_DIR/Kconfig ] && break
 done
 echo "Linux dir: $LINUX_DIR"
 [ -f "$LINUX_DIR/Kconfig" ] || {
+    $offline_mode && err_exit "Offline mode: can't use git clone and Linux repo not found. Consider using --path to specify existing repo location."
     [ -z "$LINUX_REPO" ] && {
         $use_suse_repo && [ -f /etc/os-release ] && grep -q SUSE /etc/os-release && LINUX_REPO=https://github.com/SUSE/kernel || \
         LINUX_REPO=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
     }
     echo "Linux repo: $LINUX_REPO"
     git clone "$LINUX_REPO" "$LINUX_DIR"
-    [ -f "$LINUX_DIR/Kconfig" ] || { echo >&2 "Could not clone Linux repo"; exit 1; }
+    [ -f "$LINUX_DIR/Kconfig" ] || err_exit "Could not clone Linux repo"
 }
 cd "$LINUX_DIR"
+$offline_mode || git fetch origin
+
+$setup_only && {
+    echo "Skipping build due to --setup-only mode."
+    exit 0
+}
+
 [ -n "$LINUX_TAG" ] && {
     echo "Linux tag: $LINUX_TAG"
-    git fetch origin
-    git rev-parse "$LINUX_TAG" || { echo >&2 "Linux version not found: $LINUX_TAG"; exit 1; }
+    git rev-parse "$LINUX_TAG" || err_exit "Linux version not found: $LINUX_TAG"
     git checkout --force "$LINUX_TAG"; git reset --hard; git clean --force -d
 }
 [ -n "$LINUX_PATCHDIR" ] && {
@@ -107,7 +129,7 @@ gitrev=$(git rev-parse --short HEAD)
 [ -x /usr/local/bin/perf-${LINUX_TAG}-${gitrev} ] || {
     echo "Building perf..."
     make EXTRA_CFLAGS=-Wno-maybe-uninitialized clean all -j $(nproc) -C tools/perf
-    sudo cp tools/perf/perf /usr/local/bin/perf-${LINUX_TAG}-${gitrev}
+    sudo cp tools/perf/perf /usr/local/bin/perf-${LINUX_TAG}-${gitrev} || err_exit "Perf tool failed to build."
 }
 [ "$CPU" = aarch64 -o "$HOSTTYPE" = aarch64 ] && arch=arm64 || arch=x86
 ls -l arch/$arch/boot/*Image*
