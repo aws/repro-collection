@@ -6,6 +6,23 @@
 : ${SCENARIO_REUSE_BUILT_KERNELS:=true}      # if the required kernel version was built before, reuse it (this will cause wrong results if testing the same kernel multiple times but with different config options)
 : ${SCENARIO_BASELINE:=6.5.13}               # kernel version to use as baseline when printing final results
 
+SCENARIO_BASE_KERNELS="6.5 6.6 6.8 6.12 6.13 6.14 6.15"
+SCENARIO_LATEST_KERNELS="6.5.13 6.6.94 6.8.12 6.12.34 6.13.12 6.14.11 6.15.3 6.16-rc3"
+declare -A SCENARIO_CONFIG_VARS=( # format: [sched_policy [sched_feature ...]]
+    [default]=""
+    [NOx2]="SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY"
+    [batch]="SCHED_BATCH PLACE_LAG RUN_TO_PARITY"
+)
+# treat the above definitions as constants; if you want to specify which kernels to run, override SCENARIO_KERNELS and SCENARIO_CONFIGS from the command line
+# e.g.:
+#SCENARIO_KERNELS="6.5.13 6.6.94 6.12.34 6.14.11 6.15.3 6.16-rc3"
+#SCENARIO_CONFIGS="default batch"
+
+#: ${SCENARIO_KERNELS:="${SCENARIO_BASE_KERNELS} ${SCENARIO_LATEST_KERNELS}"} # list of kernels to test
+: ${SCENARIO_KERNELS:="${SCENARIO_LATEST_KERNELS}"} # only test latest by default
+: ${SCENARIO_CONFIGS:="default NOx2 batch"}  # which configs to run for each kernel version
+: ${SCENARIO_BASE_SLICES:="3"}               # base slice values to use, in ms; multiple values e.g.: "3 6"
+
 function scenario:help()
 {
     echo "Repro scenario: EEVDF regression from kernel 6.5 to 6.6-14, with and without proposed mitigations"
@@ -61,22 +78,28 @@ function scenario:require_kernel() {
     repro:fatal "$msg"
 }
 
-# run one mysql test; args: <title> <data_label> <kernel_version> [scheduler_policy] [scheduler_feature [...]] [-- workload_args]
+# run one mysql test; args: <title> <data_label> <kernel_version> <config> <slice_ms> [scheduler_feature [...]] [-- workload_args]
 function scenario:run_mysql()
 {
     repro:info "MySQL on $1"
     scenario:require_kernel "$3"
     local label="$2"
+    local config="$4"
+    local slice="$5"
+    shift 5
     repro:wait_for_ldg "STEP" "${label}"
-    export WORKLOAD_SCHED_POLICY="${4:-SCHED_OTHER}"
-    shift 3 # shift 4 will do nothing if the optional 4th argument is missing
-    shift
+    local sched=${SCENARIO_CONFIG_VARS[$config]:-SCHED_OTHER}
+    export WORKLOAD_SCHED_POLICY="${sched%% *}"
     local feature
+    for feature in ${SCENARIO_CONFIG_VARS[$config]#* }; do
+        repro:cmd sudo bash -c "'echo $feature >/sys/kernel/debug/sched/features'"
+    done
     for feature; do
         shift
         [ "$feature" = "--" ] && break
         repro:cmd sudo bash -c "'echo $feature >/sys/kernel/debug/sched/features'"
     done
+    repro:cmd sudo bash -c "'echo ${slice} >/sys/kernel/debug/sched/base_slice_ns'"
     repro:info "Starting perf sched stats with wait=${SCENARIO_PERF_WAIT} and duration=${SCENARIO_PERF_DURATION}"
     {
         sleep "${SCENARIO_PERF_WAIT}"
@@ -100,71 +123,33 @@ function scenario:run:sut()
     : ${SCENARIO_PERF_WAIT:=$((60 * HAMMERDB_PARAM_RAMPUP_MIN * 2))}
     : ${SCENARIO_PERF_DURATION:=$((60 * HAMMERDB_PARAM_DURATION_MIN / 2))}
 
-    repro:persistent_steps "${SCENARIO_NAME}" <<-EOT
+    {
+        local kernel config slice
+        # initial steps
+        cat <<-EOT
         repro:package:update
         # Removing cryptsetup to avoid "couldn't resolve device /dev/root" errors with custom kernel builds
         repro:package:remove cryptsetup
         #repro:cmd sudo apt-get purge flash-kernel -y
-
-        scenario:run_mysql "default kernel 6.5" k6.5.0-default 6.5
-        scenario:run_mysql "default kernel 6.5.13" k6.5.13-default 6.5.13
-        scenario:run_mysql "kernel 6.5.13 SCHED_BATCH" k6.5.13-batch 6.5.13 SCHED_BATCH
-
-        scenario:run_mysql "default kernel 6.6" k6.6.0-default 6.6
-        scenario:run_mysql "kernel 6.6 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.6.0-NOx2 6.6 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.6 SCHED_BATCH" k6.6.0-batch 6.6 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
-
-        scenario:run_mysql "default kernel 6.6.93" k6.6.93-default 6.6.93
-        scenario:run_mysql "kernel 6.6.93 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.6.93-NOx2 6.6.93 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.6.93 SCHED_BATCH" k6.6.93-batch 6.6.93 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
-
-        scenario:run_mysql "default kernel 6.8" k6.8.0-default 6.8 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.8 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.8.0-NOx2 6.8 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.8 SCHED_BATCH" k6.8.0-batch 6.8 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
-
-        scenario:run_mysql "default kernel 6.8.12" k6.8.12-default 6.8.12 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.8.12 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.8.12-NOx2 6.8.12 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.8.12 SCHED_BATCH" k6.8.12-batch 6.8.12 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
-
-        scenario:run_mysql "default kernel 6.12" k6.12.0-default 6.12 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.12 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.12.0-NOx2 6.12 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.12 SCHED_BATCH" k6.12.0-batch 6.12 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
-
-        scenario:run_mysql "default kernel 6.12.33" k6.12.33-default 6.12.33 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.12.33 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.12.33-NOx2 6.12.33 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.12.33 SCHED_BATCH" k6.12.33-batch 6.12.33 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
-
-        scenario:run_mysql "default kernel 6.13" k6.13.0-default 6.13 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.13 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.13.0-NOx2 6.13 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.13 SCHED_BATCH" k6.13.0-batch 6.13 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
-
-        scenario:run_mysql "default kernel 6.13.12" k6.13.12-default 6.13.12 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.13.12 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.13.12-NOx2 6.13.12 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.13.12 SCHED_BATCH" k6.13.12-batch 6.13.12 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
-
-        scenario:run_mysql "default kernel 6.14" k6.14.0-default 6.14 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.14 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.14.0-NOx2 6.14 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.14 SCHED_BATCH" k6.14.0-batch 6.14 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
-
-        scenario:run_mysql "default kernel 6.14.11" k6.14.11-default 6.14.11 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.14.11 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.14.11-NOx2 6.14.11 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.14.11 SCHED_BATCH" k6.14.11-batch 6.14.11 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
-
-        scenario:run_mysql "default kernel 6.15" k6.15.0-default 6.15 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.15 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.15.0-NOx2 6.15 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.15 SCHED_BATCH" k6.15.0-batch 6.15 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
-
-        scenario:run_mysql "default kernel 6.15.2" k6.15.2-default 6.15.2 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.15.2 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.15.2-NOx2 6.15.2 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.15.2 SCHED_BATCH" k6.15.2-batch 6.15.2 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
-
-        scenario:run_mysql "default kernel 6.16-rc1" k6.16.rc1-default 6.16-rc1 SCHED_OTHER PLACE_LAG RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.16-rc1 NO_PLACE_LAG NO_RUN_TO_PARITY" k6.16.rc1-NOx2 6.16-rc1 SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY
-        scenario:run_mysql "kernel 6.16-rc1 SCHED_BATCH" k6.16.rc1-batch 6.16-rc1 SCHED_BATCH PLACE_LAG RUN_TO_PARITY
-
+EOT
+        # loop steps for each tested kernel
+        for kernel in ${SCENARIO_KERNELS}; do
+            for config in ${SCENARIO_CONFIGS}; do
+                for slice in ${SCENARIO_BASE_SLICES}; do
+                    for workload in $(scenario:workloads); do
+                        cat <<-EOT
+                        scenario:run_mysql "kernel ${kernel} ${config} ${slice}ms" k${kernel//-/.}-${config} ${kernel} ${config} ${slice}
+EOT
+                    done
+                done
+            done
+        done
+        # final steps
+        cat <<-EOT
         repro:wait_for_ldg "STEP" "DONE"
         repro:info "Done"
 EOT
+    } | repro:persistent_steps "${SCENARIO_NAME}"
 }
 
 # LDG: keep sending "STEP" and running one iteration until the SUT sends "DONE"
