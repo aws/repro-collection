@@ -432,6 +432,7 @@ function repro:run() {
 
     repro:preflight
 
+    local saved_cwd=$(pwd)
     [ -d "$REPRO_ROOT" ] && {
         repro:debug ">>> cd $REPRO_ROOT"
         cd "$REPRO_ROOT"
@@ -452,6 +453,7 @@ function repro:run() {
         declare -F "$REPRO_NAME:post:$op" &>/dev/null && { repro:cmd --force "$REPRO_NAME:post:$op" "${opargs[@]}" || break; }
         true
     done
+    cd $saved_cwd
 }
 
 function repro:scenario() {

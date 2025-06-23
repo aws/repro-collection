@@ -22,6 +22,7 @@ declare -A SCENARIO_CONFIG_VARS=( # format: [sched_policy [sched_feature ...]]
 : ${SCENARIO_KERNELS:="${SCENARIO_LATEST_KERNELS}"} # only test latest by default
 : ${SCENARIO_CONFIGS:="default NOx2 batch"}  # which configs to run for each kernel version
 : ${SCENARIO_BASE_SLICES:="3"}               # base slice values to use, in ms; multiple values e.g.: "3 6"
+: ${SCENARIO_ITERATIONS_PER_RUN:=1}          # how many times to run each kernel+config variant
 
 function scenario:help()
 {
@@ -78,7 +79,7 @@ function scenario:require_kernel() {
     repro:fatal "$msg"
 }
 
-# run one mysql test; args: <title> <data_label> <kernel_version> <config> <slice_ms> [scheduler_feature [...]] [-- workload_args]
+# run iterations of a mysql test; args: <title> <data_label> <kernel_version> <config> <slice_ms> [scheduler_feature [...]] [-- workload_args]
 function scenario:run_mysql()
 {
     repro:info "MySQL on $1"
@@ -87,7 +88,6 @@ function scenario:run_mysql()
     local config="$4"
     local slice="$5"
     shift 5
-    repro:wait_for_ldg "STEP" "${label}"
     local sched=${SCENARIO_CONFIG_VARS[$config]:-SCHED_OTHER}
     export WORKLOAD_SCHED_POLICY="${sched%% *}"
     local feature
@@ -100,19 +100,25 @@ function scenario:run_mysql()
         repro:cmd sudo bash -c "'echo $feature >/sys/kernel/debug/sched/features'"
     done
     repro:cmd sudo bash -c "'echo ${slice} >/sys/kernel/debug/sched/base_slice_ns'"
-    repro:info "Starting perf sched stats with wait=${SCENARIO_PERF_WAIT} and duration=${SCENARIO_PERF_DURATION}"
-    {
-        sleep "${SCENARIO_PERF_WAIT}"
-        cat /proc/schedstat >"schedstat-${label}-before"
-        repro:cmd sudo bash -c "'echo 1 >/proc/sys/kernel/sched_schedstats'"
-        repro:cmd sudo perf sched stats record "--output=perf-${label}.data" -- sleep "${SCENARIO_PERF_DURATION}"
-        repro:cmd sudo bash -c "'echo 0 >/proc/sys/kernel/sched_schedstats'"
-        cat /proc/schedstat >"schedstat-${label}-after"
-        sudo chown "$USER" "perf-${label}.data"
-        perf sched stats report -i "perf-${label}.data" >"perf-${label}.report"
-        repro:cmd sed -n '"/CPU 0/q;p"' '"perf-${label}.report"'
-    }&
-    repro:run mysql SUT "$@"
+    local iteration it_label
+    for ((iteration = 1; iteration <= ${SCENARIO_ITERATIONS_PER_RUN}; iteration++)); do
+        it_label="${label}-${iteration}"
+        repro:info "Starting iteration #${iteration}/${SCENARIO_ITERATIONS_PER_RUN} for ${it_label}"
+        repro:wait_for_ldg "STEP" "${it_label}"
+        repro:info "Starting perf sched stats with wait=${SCENARIO_PERF_WAIT} and duration=${SCENARIO_PERF_DURATION}"
+        {
+            sleep "${SCENARIO_PERF_WAIT}"
+            cat /proc/schedstat >"schedstat-${it_label}-before"
+            repro:cmd sudo bash -c "'echo 1 >/proc/sys/kernel/sched_schedstats'"
+            repro:cmd sudo perf sched stats record "--output=perf-${it_label}.data" -- sleep "${SCENARIO_PERF_DURATION}"
+            repro:cmd sudo bash -c "'echo 0 >/proc/sys/kernel/sched_schedstats'"
+            cat /proc/schedstat >"schedstat-${it_label}-after"
+            sudo chown "$USER" "perf-${it_label}.data"
+            perf sched stats report -i "perf-${it_label}.data" >"perf-${it_label}.report"
+            repro:cmd sed -n '"/CPU 0/q;p"' '"perf-${it_label}.report"'
+        }&
+        repro:run mysql SUT "$@"
+    done
 }
 
 # run all the test cases in sequence; if needed, build+install required kernel version and wait for manual reboot
@@ -167,7 +173,7 @@ function scenario:run:loadgen()
 
 function scenario:results:loadgen()
 {
-    cd "${SCENARIO_RESULTS_PATH}"
+    pushd "${SCENARIO_RESULTS_PATH}"
     repro:info "Results: ${SCENARIO_RESULTS_PATH}/results-k*.json"
 
     for r in results-*.json; do
@@ -175,6 +181,8 @@ function scenario:results:loadgen()
         repro:cmd cat "$r"
     done
 
-    repro:cmd "${SCENARIO_PATH}/report.py" "${SCENARIO_BASELINE}-default" results-k6.{5,6,8,1}*-[^b]*.json
-    repro:cmd "${SCENARIO_PATH}/report.py" "${SCENARIO_BASELINE}-batch" results-k6.{5,6,8,1}*-batch*.json
+    repro:cmd "${SCENARIO_PATH}/report.py" "${SCENARIO_BASELINE}-default-1" results-k6.{5,6,8,1}*-[^b]*-*.json
+    repro:cmd "${SCENARIO_PATH}/report.py" "${SCENARIO_BASELINE}-batch-1" results-k6.{5,6,8,1}*-batch*.json
+
+    popd
 }
