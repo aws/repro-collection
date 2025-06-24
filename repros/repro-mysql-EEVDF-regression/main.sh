@@ -6,8 +6,8 @@
 : ${SCENARIO_REUSE_BUILT_KERNELS:=true}      # if the required kernel version was built before, reuse it (this will cause wrong results if testing the same kernel multiple times but with different config options)
 : ${SCENARIO_BASELINE:=6.5.13}               # kernel version to use as baseline when printing final results
 
-SCENARIO_BASE_KERNELS="6.5 6.6 6.8 6.12 6.13 6.14 6.15"
-SCENARIO_LATEST_KERNELS="6.5.13 6.6.94 6.8.12 6.12.34 6.13.12 6.14.11 6.15.3 6.16-rc3"
+_SCENARIO_CONST_KERNELS_BASE="6.5 6.6 6.8 6.12 6.13 6.14 6.15"
+_SCENARIO_CONST_KERNELS_LATEST="6.5.13 6.6.94 6.8.12 6.12.34 6.13.12 6.14.11 6.15.3 6.16-rc3"
 declare -A SCENARIO_CONFIG_VARS=( # format: [sched_policy [sched_feature ...]]
     [default]=""
     [NOx2]="SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY"
@@ -18,8 +18,8 @@ declare -A SCENARIO_CONFIG_VARS=( # format: [sched_policy [sched_feature ...]]
 #SCENARIO_KERNELS="6.5.13 6.6.94 6.12.34 6.14.11 6.15.3 6.16-rc3"
 #SCENARIO_CONFIGS="default batch"
 
-#: ${SCENARIO_KERNELS:="${SCENARIO_BASE_KERNELS} ${SCENARIO_LATEST_KERNELS}"} # list of kernels to test
-: ${SCENARIO_KERNELS:="${SCENARIO_LATEST_KERNELS}"} # only test latest by default
+#: ${SCENARIO_KERNELS:="${_SCENARIO_CONST_KERNELS_BASE} ${_SCENARIO_CONST_KERNELS_LATEST}"} # list of kernels to test
+: ${SCENARIO_KERNELS:="${_SCENARIO_CONST_KERNELS_LATEST}"} # only test latest by default
 : ${SCENARIO_CONFIGS:="default NOx2 batch"}  # which configs to run for each kernel version
 : ${SCENARIO_BASE_SLICES:="3"}               # base slice values to use, in ms; multiple values e.g.: "3 6"
 : ${SCENARIO_ITERATIONS_PER_RUN:=1}          # how many times to run each kernel+config variant
