@@ -7,7 +7,7 @@
 : ${SCENARIO_BASELINE:=6.5.13}               # kernel version to use as baseline when printing final results
 
 _SCENARIO_CONST_KERNELS_BASE="6.5 6.6 6.8 6.12 6.13 6.14 6.15"
-_SCENARIO_CONST_KERNELS_LATEST="6.5.13 6.6.94 6.8.12 6.12.34 6.13.12 6.14.11 6.15.3 6.16-rc3"
+_SCENARIO_CONST_KERNELS_LATEST="6.5.13 6.6.95 6.8.12 6.12.35 6.13.12 6.14.11 6.15.4 6.16-rc4"
 declare -A SCENARIO_CONFIG_VARS=( # format: [sched_policy [sched_feature ...]]
     [default]=""
     [NOx2]="SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY"
@@ -15,7 +15,7 @@ declare -A SCENARIO_CONFIG_VARS=( # format: [sched_policy [sched_feature ...]]
 )
 # treat the above definitions as constants; if you want to specify which kernels to run, override SCENARIO_KERNELS and SCENARIO_CONFIGS from the command line
 # e.g.:
-#SCENARIO_KERNELS="6.5.13 6.6.94 6.12.34 6.14.11 6.15.3 6.16-rc3"
+#SCENARIO_KERNELS="6.5.13 6.6.95 6.12.35 6.14.11 6.15.4 6.16-rc4"
 #SCENARIO_CONFIGS="default batch"
 
 #: ${SCENARIO_KERNELS:="${_SCENARIO_CONST_KERNELS_BASE} ${_SCENARIO_CONST_KERNELS_LATEST}"} # list of kernels to test
