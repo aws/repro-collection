@@ -19,7 +19,7 @@ shopt -s dotglob expand_aliases extglob globstar nullglob xpg_echo
 : ${REPROCFG_ROOT:=$(realpath "$(dirname "${BASH_SOURCE[0]}")/..")}
 : ${REPROCFG_TMP:=$REPROCFG_ROOT/tmp}
 
-: ${SCENARIO_RESULTS_PATH:=~/}
+: ${SCENARIO_RESULTS_PATH:=~/repro-results/}
 
 # Standard parameters for all workloads
 : ${WORKLOAD_RESULTS_FILE:=${SCENARIO_RESULTS_PATH}/results.json} # where the workload writes the parsed results

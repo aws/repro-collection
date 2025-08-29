@@ -117,15 +117,17 @@ function scenario:run_mysql()
         repro:wait_for_ldg "STEP" "${it_label}"
         repro:info "Starting perf sched stats with wait=${SCENARIO_PERF_WAIT} and duration=${SCENARIO_PERF_DURATION}"
         {
+            local perf_data="${SCENARIO_RESULTS_PATH}/perf-${it_label}.data"
+            local perf_report="${SCENARIO_RESULTS_PATH}/perf-${it_label}.report"
             sleep "${SCENARIO_PERF_WAIT}"
             cat /proc/schedstat >"schedstat-${it_label}-before"
             repro:cmd sudo bash -c "'echo 1 >/proc/sys/kernel/sched_schedstats'"
-            repro:cmd sudo perf sched stats record "--output=perf-${it_label}.data" -- sleep "${SCENARIO_PERF_DURATION}"
+            repro:cmd sudo perf sched stats record "--output=${perf_data}" -- sleep "${SCENARIO_PERF_DURATION}"
             repro:cmd sudo bash -c "'echo 0 >/proc/sys/kernel/sched_schedstats'"
-            cat /proc/schedstat >"schedstat-${it_label}-after"
-            sudo chown "$USER" "perf-${it_label}.data"
-            perf sched stats report -i "perf-${it_label}.data" >"perf-${it_label}.report"
-            repro:cmd sed -n '"/CPU 0/q;p"' '"perf-${it_label}.report"'
+            cat /proc/schedstat >"${SCENARIO_RESULTS_PATH}/schedstat-${it_label}-after"
+            sudo chown "$USER" "${perf_data}"
+            perf sched stats report -i "${perf_data} " >"${perf_report}"
+            repro:cmd sed -n '"/CPU 0/q;p"' '"${perf_report}"'
         }&
         repro:run mysql SUT "$@" configure run cleanup
     done
@@ -138,6 +140,7 @@ function scenario:run:sut()
     # which are only initialized after this file is sourced
     : ${SCENARIO_PERF_WAIT:=$((60 * HAMMERDB_PARAM_RAMPUP_MIN * 2))}
     : ${SCENARIO_PERF_DURATION:=$((60 * HAMMERDB_PARAM_DURATION_MIN / 2))}
+    mkdir -p "${SCENARIO_RESULTS_PATH}"
 
     {
         local kernel config slice
