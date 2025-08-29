@@ -28,11 +28,20 @@ function scenario:cleanup() {
     scenario:run_workload_step cleanup
 }
 
+REPROMODE_INIT_ONLY=false
+[ "$1" = "--init-only" ] && {
+    REPROMODE_INIT_ONLY=true  # init only: don't run the repro, don't react to include errors
+    shift
+}
+
 . "$(dirname "${BASH_SOURCE[0]}")/common/repromain.sh" ""
 REPROCFG_SCENARIO_MODE=true
 SCENARIO_PATH="${REPROCFG_ROOT}/repros/$1"
 SCENARIO_NAME=$(basename "${SCENARIO_PATH}")
-[ "$1" != "--help" ] && . "${SCENARIO_PATH}/main.sh" && repro:include_workloads $(scenario:workloads) || {
+[ "$1" != "--help" ] && . "${SCENARIO_PATH}/main.sh" && repro:include_workloads $(scenario:workloads)
+REPRO_INIT_OK=$?
+$REPROMODE_INIT_ONLY && return $REPRO_INIT_OK
+[ $REPRO_INIT_OK = 0 ] || {
     repro:help
     exit 1
 }
