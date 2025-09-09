@@ -15,6 +15,7 @@ shopt -s dotglob expand_aliases extglob globstar nullglob xpg_echo
 : ${REPROCFG_SUPPORT:=""}
 : ${REPROCFG_PORT:=31337}
 : ${REPROCFG_PERSIST_FILE:=~/.repro_state} # where the current scenario saves state e.g. between reboots
+: ${REPROCFG_LOCK_TIMEOUT:=10} # wait time in seconds for acquiring persistent state lock; 0 disables the timeout
 # this shouldn't normally need manual tweaking
 : ${REPROCFG_ROOT:=$(realpath "$(dirname "${BASH_SOURCE[0]}")/..")}
 : ${REPROCFG_TMP:=$REPROCFG_ROOT/tmp}
@@ -151,7 +152,7 @@ function repro:cmd() {
 # args: <id> (a unique string ID to define the persisted state)
 function repro:persistent_steps() {
     local step id="$1" counter=0
-    local state=$(repro:load_persistent_state "$id")
+    local state=$(repro:get_persistent_var "$id" PERSISTENT_STEP_COUNTER 0)
     repro:debug "Running persistent steps $((state+1))+"
     while read -r step; do
         [[ "$step" =~ ^[[:space:]]*$ ]] || [[ "$step" =~ ^[[:space:]]*# ]] && continue
@@ -159,27 +160,81 @@ function repro:persistent_steps() {
         [ $counter -le $state ] && continue
         repro:debug "Running persistent step #$counter: $step"
         repro:cmd "$step" || return $?
-        repro:save_persistent_state "$id" "$counter"
+        repro:set_persistent_var "$id" PERSISTENT_STEP_COUNTER "$counter"
     done
-    repro:save_persistent_state "$id"
+    repro:unset_persistent_var "$id" PERSISTENT_STEP_COUNTER
 }
 
-# persistent state management; args: <id> [data] (if data is blank on save, remove the state)
-function repro:save_persistent_state() {
+# persistent state management
+# args: <id> <variable> [data] (if data is blank, remove the variable; if the variable is blank, remove the whole state)
+# Note: spaces in data must not be quoted, and multi-line data is not supported
+function repro:set_persistent_var() {
     local state=$(repro:get_persistent_file "$1")
+    repro:lock_file "$state"
     if [ -n "$2" ]; then
-        echo "$2" >"$state"
+        touch "$state"
+        # intended side effect: using a backup extension makes this also work on non-GNU sed (e.g. Mac)
+        sed -i.bak "/^${2}=/d" "$state"
+        if [ -n "$3" ]; then
+            echo "$2=$3" >>"$state"
+        else
+            [ $(wc -l <"$state") = 0 ] && rm -f "$state"
+        fi
+        rm -f "$state.bak"
     else
         rm -f "$state"
     fi
+    repro:unlock_file "$state"
 }
-function repro:load_persistent_state() {
+# args: <id> <variable>
+function repro:unset_persistent_var() {
+    repro:set_persistent_var "$1" "$2"
+}
+# args: <id>
+function repro:delete_persistent_state() {
+    repro:set_persistent_var "$1"
+}
+# args: <id> <variable> [default_value]
+function repro:get_persistent_var() {
+    [ -z "$2" ] && repro:fatal "Wrong usage of repro:get_persistent_var: missing variable name"
     local state=$(repro:get_persistent_file "$1")
-    [ -e "$state" ] && cat "$state" || echo 0
+    repro:lock_file "$state"
+    [ -e "$state" ] && sed -n <"$state" "s/^${2}=//p" || echo "$3"
+    repro:unlock_file "$state"
 }
+# args: <id>
 function repro:get_persistent_file() {
-    local id="$(echo "$1" | md5sum)"
-    echo "${REPROCFG_PERSIST_FILE}.${id%% *}"
+    local id="$(md5sum <<<"$1")"
+    local state="${REPROCFG_PERSIST_FILE}.${id%% *}"
+    [ -e "$state.bak" ] && {
+        repro:lock_file "$state"
+        mv -f "$state.bak" "$state" # something went wrong on a previous set operation
+        repro:unlock_file "$state"
+    }
+    echo "$state"
+}
+
+# args: <filename>
+function repro:lock_file() {
+    local lock=/tmp/repro_$(md5sum <<<"${1}").lck; lock=${lock%% *}
+    local count=0
+    while true; do
+        # mkdir is both more universally available and more likely to be atomic than flock or lockf
+        mkdir -p "${lock}" || {
+            [ $count -gt 0 -a $count -ge "${REPROCFG_LOCK_TIMEOUT}" ] && repro:fatal "Could not create lock: ${lock}"
+            sleep 1
+            let count++
+            continue
+        }
+        trap "rmdir \"${lock}\"; exit 1" INT TERM EXIT
+        break
+    done
+}
+# args: <filename>
+function repro:unlock_file() {
+    local lock=/tmp/repro_$(md5sum <<<"${1}").lck; lock=${lock%% *}
+    rmdir "${lock}" || repro:error "Could not unlock ${lock}"
+    trap - INT TERM EXIT
 }
 
 # install system packages
