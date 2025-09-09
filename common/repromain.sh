@@ -237,6 +237,53 @@ function repro:unlock_file() {
     trap - INT TERM EXIT
 }
 
+# internal state manipulation
+# args: <var_name> <value> [reason]
+function repro:state:set() {
+    repro:set_persistent_var REPRO_STATE "$1" "$2"
+    shift 2
+    repro:set_persistent_var REPRO_STATE REASON "$@"
+    repro:set_persistent_var REPRO_STATE TIMESTAMP "$(date '+%Y%m%d.%H%M%S')"
+}
+# args: <var_name> [default_value]
+function repro:state:get() {
+    repro:get_persistent_var REPRO_STATE "$@"
+}
+# set the current PID; this is done automatically for each workload
+function repro:state:set_pid() {
+    repro:state:set PID $$
+    repro:state:set FLAG NONE
+}
+# log the current step; the current operation is logged automatically, but the workloads may also log additional detailed steps
+function repro:state:set_step() {
+    repro:state:set STEP "$@"
+}
+# log the need to reboot; this must be done explicitly by the workload
+function repro:state:set_reboot_needed() {
+    repro:state:set FLAG REBOOT "$@"
+}
+# log the rebooting state; this must NOT be called by the workload
+function repro:state:set_rebooting() {
+    repro:state:set FLAG REBOOTING "$@"
+}
+# log the need to perform a manual step and restart the workload; this must be done explicitly by the workload
+function repro:state:set_manual_needed() {
+    repro:state:set FLAG MANUAL "$@"
+}
+# get the compounded state
+function repro:state:get_all() {
+    local pid=$(repro:state:get PID)
+    local running_state=$(ps -p $pid -o state= | tr -d '[:space:]')
+    [[ "$running_state" = Z* ]] && running_state="" # zombie process
+    [ -n "$running_state" ] && running_state=true || running_state=false
+    echo "RUNNING=${running_state}"
+    echo "PID=${pid}"
+    echo "STEP=$(repro:state:get STEP)"
+    echo "FLAG=$(repro:state:get FLAG)"
+    echo "TIMESTAMP=$(repro:state:get TIMESTAMP)"
+    echo "REASON=$(repro:state:get REASON)"
+}
+
 # install system packages
 function repro:package:install() {
     local pkg_cmd
@@ -443,6 +490,8 @@ function repro:run() {
     [ "${2:---help}" = --help ] && { repro:help "$1"; return; }
     REPRO_MODE="${2,,}"
 
+    repro:state:set_pid
+
     REPRO_ROOT=$(realpath "$REPROCFG_ROOT/workloads/$REPRO_NAME")  # Note: this will be invalid in scenario mode
     local loadgen_default=true support_default=true ops opargs=()
     shift 2
@@ -497,6 +546,7 @@ function repro:run() {
     for op in "${ops[@]}"; do
         [[ "$op" = --* ]] && continue
         repro:info "Operation: $op"
+        repro:state:set_step "$op $REPRO_MODE"
         # the --force args below will run through each op regardless of dry mode; the dry setting will still be respected inside the op, if all commands are repro: friendly
         # pre hooks (stop if they return error)
         declare -F "$REPRO_NAME:pre:$op" &>/dev/null && { repro:cmd --force "$REPRO_NAME:pre:$op" "${opargs[@]}" || break; }

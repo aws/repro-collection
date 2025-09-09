@@ -72,8 +72,10 @@ function scenario:require_kernel() {
     if $SCENARIO_AUTOBUILD_KERNELS; then
         scenario:build_kernel v"$@"
         msg="Please reboot to activate kernel $1."
+        repro:state:set_reboot_needed
     else
         msg="Please build and install kernel $1, then reboot to activate it."
+        repro:state:set_manual_needed "$msg"
     fi
     msg+=" After rebooting, rerun this repro scenario to continue."
     repro:fatal "$msg"
