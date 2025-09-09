@@ -140,7 +140,6 @@ function scenario:run:sut()
     # which are only initialized after this file is sourced
     : ${SCENARIO_PERF_WAIT:=$((60 * HAMMERDB_PARAM_RAMPUP_MIN * 2))}
     : ${SCENARIO_PERF_DURATION:=$((60 * HAMMERDB_PARAM_DURATION_MIN / 2))}
-    mkdir -p "${SCENARIO_RESULTS_PATH}"
 
     {
         local kernel config slice
@@ -175,7 +174,6 @@ EOT
 # anything other than "DONE" is a data label used to name the results file
 function scenario:run:loadgen()
 {
-    mkdir -p "${SCENARIO_RESULTS_PATH}"
     while true; do
         tag=$(repro:wait_for_sut "STEP")
         [ "${tag:-DONE}" = "DONE" ] && break

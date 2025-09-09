@@ -429,6 +429,7 @@ function repro:preflight() {
     repro:check_dependencies
 
     mkdir -p "${REPROCFG_TMP}" || repro:error "Could not create temporary directory ${REPROCFG_TMP}"
+    mkdir -p "${SCENARIO_RESULTS_PATH}" || repro:error "Could not create results directory ${SCENARIO_RESULTS_PATH}"
 
     WORKLOAD_SCHED_POLICY=${WORKLOAD_SCHED_POLICY,,}
     WORKLOAD_SCHED_POLICY=${WORKLOAD_SCHED_POLICY//sched_} # also accept SCHED_OTHER etc
