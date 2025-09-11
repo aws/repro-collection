@@ -128,7 +128,7 @@ function repro:cmd:single() {
     return $ret
 }
 function repro:cmd() {
-    local force
+    local force ret
     [ "$1" = "--force" ] && force="--force" && shift
     if [ $# -eq 0 ]; then
         local tmpfile=$(mktemp /tmp/repro_cmd.XXXXXX)
@@ -141,10 +141,13 @@ function repro:cmd() {
         repro:log debug "Running command block:"
         cat $tmpfile | repro:log debug
         repro:cmd:single $force $tmpfile
+        ret=$?
         rm -f $tmpfile
     else
         repro:cmd:single $force "$@"
+        ret=$?
     fi
+    return $ret
 }
 
 # run a series of steps persistently (if the script stops and is restarted, pick up where it left off, even across reboots)
@@ -186,9 +189,13 @@ function repro:set_persistent_var() {
     fi
     repro:unlock_file "$state"
 }
-# args: <id> <variable>
+# args: <id> <variable> [<variable> [...]]
 function repro:unset_persistent_var() {
-    repro:set_persistent_var "$1" "$2"
+    local var_name id="$1"
+    shift
+    for var_name in "$@"; do
+        repro:set_persistent_var "$id" "$var_name"
+    done
 }
 # args: <id>
 function repro:delete_persistent_state() {
@@ -197,26 +204,34 @@ function repro:delete_persistent_state() {
 # args: <id> <variable> [default_value]
 function repro:get_persistent_var() {
     [ -z "$2" ] && repro:fatal "Wrong usage of repro:get_persistent_var: missing variable name"
-    local state=$(repro:get_persistent_file "$1")
+    local value state=$(repro:get_persistent_file "$1")
     repro:lock_file "$state"
-    [ -e "$state" ] && sed -n <"$state" "s/^${2}=//p" || echo "$3"
+    [ -e "$state" ] && value="$(sed -n <"$state" "s/^${2}=/=/p")"
     repro:unlock_file "$state"
+    [ -n "$value" ] && echo "${value#=}" || echo "$3"
 }
 # args: <id>
 function repro:get_persistent_file() {
     local id="$(md5sum <<<"$1")"
     local state="${REPROCFG_PERSIST_FILE}.${id%% *}"
     [ -e "$state.bak" ] && {
+        # something went wrong on a previous set operation
         repro:lock_file "$state"
-        mv -f "$state.bak" "$state" # something went wrong on a previous set operation
+        repro:warn "Restoring state $1 from backup"
+        mv -f "$state.bak" "$state"
         repro:unlock_file "$state"
     }
     echo "$state"
 }
 
 # args: <filename>
+function repro:lock_mkname() {
+    local lock=/tmp/repro_$(md5sum <<<"${1}"); lock=${lock%% *}.lck
+    echo "$lock"
+}
+# args: <filename>
 function repro:lock_file() {
-    local lock=/tmp/repro_$(md5sum <<<"${1}").lck; lock=${lock%% *}
+    local lock=$(repro:lock_mkname "$1")
     local count=0
     while true; do
         # mkdir is both more universally available and more likely to be atomic than flock or lockf
@@ -232,20 +247,27 @@ function repro:lock_file() {
 }
 # args: <filename>
 function repro:unlock_file() {
-    local lock=/tmp/repro_$(md5sum <<<"${1}").lck; lock=${lock%% *}
+    local lock=$(repro:lock_mkname "$1")
     rmdir "${lock}" || repro:error "Could not unlock ${lock}"
     trap - INT TERM EXIT
 }
 
 # internal state manipulation
-# args: <var_name> <value> [reason]
+# args: <variable> <value> [reason]
 function repro:state:set() {
     repro:set_persistent_var REPRO_STATE "$1" "$2"
-    shift 2
+    shift; shift
     repro:set_persistent_var REPRO_STATE REASON "$@"
     repro:set_persistent_var REPRO_STATE TIMESTAMP "$(date '+%Y%m%d.%H%M%S')"
 }
-# args: <var_name> [default_value]
+# args: <variable> [<variable> [...]]
+function repro:state:unset() {
+    local var_name
+    for var_name in "$@"; do
+        repro:set_persistent_var REPRO_STATE "$var_name"
+    done
+}
+# args: <variable> [default_value]
 function repro:state:get() {
     repro:get_persistent_var REPRO_STATE "$@"
 }
