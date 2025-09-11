@@ -68,11 +68,15 @@ function selftest:cleanup() {
 function selftest:help() {
     echo "Runs the repromain unit tests."
     echo "Hosts required: 1 SUT. Optional: any number of additional hosts (SUT, loadgen, support)."
-    echo "Usage: ./run.sh selftest SUT|LDG|SUP [--test=<name_of_test> [...]]"
+    echo "Usage: ./run.sh selftest SUT|LDG|SUP [--list] [--test=<name_of_test> [...]]"
 }
 
 function selftest:run_all_tests() {
     local test_name test_pattern
+    [ "$1" = "--list" ] && {
+        compgen -A function -X "!${@: -1}" | sed -E 's/^.*:test(_...)?:/* '${REPRO_MODE}' test: /'
+        return 0
+    }
     [[ "$1" = --test=* ]] || test_pattern="$1"
     while [ $# -gt 0 ]; do
         if [[ "$1" = --test=* ]]; then
