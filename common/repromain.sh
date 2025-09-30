@@ -295,7 +295,7 @@ function repro:state:set_manual_needed() {
 # get the compounded state
 function repro:state:get_all() {
     local pid=$(repro:state:get PID)
-    local running_state=$(ps -p $pid -o state= | tr -d '[:space:]')
+    local running_state=$(ps -p ${pid:-0} -o state= 2>/dev/null | tr -d '[:space:]')
     [[ "$running_state" = Z* ]] && running_state="" # zombie process
     [ -n "$running_state" ] && running_state=true || running_state=false
     echo "RUNNING=${running_state}"
