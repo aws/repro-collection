@@ -1,0 +1,95 @@
+From 1bc765f781a11115da00a719b8e2a2e3a9d14d27 Mon Sep 17 00:00:00 2001
+From: Swapnil Sapkal <swapnil.sapkal@amd.com>
+Date: Tue, 26 Aug 2025 05:10:29 +0000
+Subject: [PATCH 01/11] perf: Add print_separator to util
+
+Add print_separator to util.c and use it wherever necessary.
+
+Signed-off-by: Swapnil Sapkal <swapnil.sapkal@amd.com>
+---
+ tools/perf/builtin-kwork.c | 13 ++++---------
+ tools/perf/util/util.c     |  6 ++++++
+ tools/perf/util/util.h     |  2 ++
+ 3 files changed, 12 insertions(+), 9 deletions(-)
+
+diff --git a/tools/perf/builtin-kwork.c b/tools/perf/builtin-kwork.c
+index d2e08de5976d..842f59ff85ac 100644
+--- a/tools/perf/builtin-kwork.c
++++ b/tools/perf/builtin-kwork.c
+@@ -1340,11 +1340,6 @@ static struct kwork_class *kwork_class_supported_list[KWORK_CLASS_MAX] = {
+ 	[KWORK_CLASS_SCHED]     = &kwork_sched,
+ };
+ 
+-static void print_separator(int len)
+-{
+-	printf(" %.*s\n", len, graph_dotted_line);
+-}
+-
+ static int report_print_work(struct perf_kwork *kwork, struct kwork_work *work)
+ {
+ 	int ret = 0;
+@@ -1458,7 +1453,7 @@ static int report_print_header(struct perf_kwork *kwork)
+ 	}
+ 
+ 	printf("\n");
+-	print_separator(ret);
++	print_separator(ret, "", 0);
+ 	return ret;
+ }
+ 
+@@ -1633,7 +1628,7 @@ static void top_print_header(struct perf_kwork *kwork __maybe_unused)
+ 		     PRINT_RUNTIME_HEADER_WIDTH + RPINT_DECIMAL_WIDTH, "RUNTIME",
+ 		     PRINT_TASK_NAME_WIDTH, "COMMAND");
+ 	printf("\n ");
+-	print_separator(ret);
++	print_separator(ret, "", 0);
+ }
+ 
+ static int top_print_work(struct perf_kwork *kwork __maybe_unused, struct kwork_work *work)
+@@ -1933,11 +1928,11 @@ static int perf_kwork__report(struct perf_kwork *kwork)
+ 		}
+ 		next = rb_next(next);
+ 	}
+-	print_separator(ret);
++	print_separator(ret, "", 0);
+ 
+ 	if (kwork->summary) {
+ 		print_summary(kwork);
+-		print_separator(ret);
++		print_separator(ret, "", 0);
+ 	}
+ 
+ 	print_bad_events(kwork);
+diff --git a/tools/perf/util/util.c b/tools/perf/util/util.c
+index 0f031eb80b4c..1b91834e11de 100644
+--- a/tools/perf/util/util.c
++++ b/tools/perf/util/util.c
+@@ -257,6 +257,12 @@ static int rm_rf_kcore_dir(const char *path)
+ 	return 0;
+ }
+ 
++void print_separator(int pre_dash_cnt, const char *s, int post_dash_cnt)
++{
++	printf("%.*s%s%.*s\n", pre_dash_cnt, graph_dotted_line, s, post_dash_cnt,
++	       graph_dotted_line);
++}
++
+ int rm_rf_perf_data(const char *path)
+ {
+ 	const char *pat[] = {
+diff --git a/tools/perf/util/util.h b/tools/perf/util/util.h
+index 3423778e39a5..de69384380c2 100644
+--- a/tools/perf/util/util.h
++++ b/tools/perf/util/util.h
+@@ -48,6 +48,8 @@ bool sysctl__nmi_watchdog_enabled(void);
+ 
+ int perf_tip(char **strp, const char *dirpath);
+ 
++void print_separator(int pre_dash_cnt, const char *s, int post_dash_cnt);
++
+ #ifndef HAVE_SCHED_GETCPU_SUPPORT
+ int sched_getcpu(void);
+ #endif
+-- 
+2.51.0
+

@@ -568,7 +568,7 @@ function repro:run() {
     for op in "${ops[@]}"; do
         [[ "$op" = --* ]] && continue
         repro:info "Operation: $op"
-        repro:state:set_step "$op $REPRO_MODE"
+        repro:state:set_step "$op $REPRO_NAME $REPRO_MODE"
         # the --force args below will run through each op regardless of dry mode; the dry setting will still be respected inside the op, if all commands are repro: friendly
         # pre hooks (stop if they return error)
         declare -F "$REPRO_NAME:pre:$op" &>/dev/null && { repro:cmd --force "$REPRO_NAME:pre:$op" "${opargs[@]}" || break; }

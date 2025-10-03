@@ -1,0 +1,36 @@
+From 73b1b2950f5b5f27233ecf293b547f1446d33ccd Mon Sep 17 00:00:00 2001
+From: Swapnil Sapkal <swapnil.sapkal@amd.com>
+Date: Tue, 26 Aug 2025 05:10:30 +0000
+Subject: [PATCH 02/11] tools/lib: Add list_is_first()
+
+Add list_is_first() to check whether @list is the first entry in list @head
+
+Signed-off-by: Swapnil Sapkal <swapnil.sapkal@amd.com>
+---
+ tools/include/linux/list.h | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/tools/include/linux/list.h b/tools/include/linux/list.h
+index a4dfb6a7cc6a..a692ff7aed5c 100644
+--- a/tools/include/linux/list.h
++++ b/tools/include/linux/list.h
+@@ -169,6 +169,16 @@ static inline void list_move_tail(struct list_head *list,
+ 	list_add_tail(list, head);
+ }
+ 
++/**
++ * list_is_first -- tests whether @list is the first entry in list @head
++ * @list: the entry to test
++ * @head: the head of the list
++ */
++static inline int list_is_first(const struct list_head *list, const struct list_head *head)
++{
++	return list->prev == head;
++}
++
+ /**
+  * list_is_last - tests whether @list is the last entry in list @head
+  * @list: the entry to test
+-- 
+2.51.0
+
