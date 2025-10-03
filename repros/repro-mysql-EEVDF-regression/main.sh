@@ -7,7 +7,7 @@
 : ${SCENARIO_BASELINE:=6.5.13}               # kernel version to use as baseline when printing final results
 
 _SCENARIO_CONST_KERNELS_BASE="6.5 6.6 6.8 6.12 6.13 6.14 6.15 6.16 6.17"
-_SCENARIO_CONST_KERNELS_LATEST="6.5.13 6.6.108 6.8.12 6.12.49 6.13.12 6.14.11 6.15.11 6.16.9"
+_SCENARIO_CONST_KERNELS_LATEST="6.5.13 6.6.109 6.8.12 6.12.50 6.13.12 6.14.11 6.15.11 6.16.10"
 declare -A SCENARIO_CONFIG_VARS=( # format: [sched_policy [sched_feature ...]]
     [default]=""
     [NOx2]="SCHED_OTHER NO_PLACE_LAG NO_RUN_TO_PARITY"
