@@ -65,6 +65,7 @@ function scenario:build_kernel() {
 
 # make sure the kernel is the expected version; args: <kernel_version> [config_options]
 function scenario:require_kernel() {
+    repro:state:set_step "require_kernel scenario $REPRO_MODE"
     local msg kernel="$(uname -r)"
     repro:info "Current kernel: $kernel"
     $SCENARIO_SKIP_BUILD_ACTIVE_KERNEL && [[ ! "$kernel" =~ ^${1}[0-9] ]] && [[ "$kernel" =~ ^${1} || "$kernel" =~ ^${1/-/.*-} ]] && return 0
@@ -72,7 +73,7 @@ function scenario:require_kernel() {
     if $SCENARIO_AUTOBUILD_KERNELS; then
         scenario:build_kernel v"$@"
         msg="Please reboot to activate kernel $1."
-        repro:state:set_reboot_needed
+        repro:state:set_reboot_needed "Activate kernel $1 instead of $(uname -r)"
     else
         msg="Please build and install kernel $1, then reboot to activate it."
         repro:state:set_manual_needed "$msg"
@@ -119,16 +120,16 @@ function scenario:run_mysql()
         repro:wait_for_ldg "STEP" "${it_label}"
         repro:info "Starting perf sched stats with wait=${SCENARIO_PERF_WAIT} and duration=${SCENARIO_PERF_DURATION}"
         {
-            local perf_data="${SCENARIO_RESULTS_PATH}/perf-${it_label}.data"
-            local perf_report="${SCENARIO_RESULTS_PATH}/perf-${it_label}.report"
+            local perf_data="${SCENARIO_RESULTS_PATH%/}/perf-${it_label}.data"
+            local perf_report="${SCENARIO_RESULTS_PATH%/}/perf-${it_label}.report"
             sleep "${SCENARIO_PERF_WAIT}"
-            cat /proc/schedstat >"schedstat-${it_label}-before"
+            cat /proc/schedstat >"${SCENARIO_RESULTS_PATH}/schedstat-${it_label}-before"
             repro:cmd sudo bash -c "'echo 1 >/proc/sys/kernel/sched_schedstats'"
             repro:cmd sudo perf sched stats record "--output=${perf_data}" -- sleep "${SCENARIO_PERF_DURATION}"
             repro:cmd sudo bash -c "'echo 0 >/proc/sys/kernel/sched_schedstats'"
             cat /proc/schedstat >"${SCENARIO_RESULTS_PATH}/schedstat-${it_label}-after"
             sudo chown "$USER" "${perf_data}"
-            perf sched stats report -i "${perf_data} " >"${perf_report}"
+            repro:cmd perf sched stats report -i "${perf_data}" >"${perf_report}"
             repro:cmd sed -n '"/CPU 0/q;p"' '"${perf_report}"'
         }&
         repro:run mysql SUT "$@" configure run cleanup
