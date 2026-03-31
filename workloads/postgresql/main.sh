@@ -225,9 +225,8 @@ function postgresql:run:loadgen() {
 
     # initialize pgbench tables
     repro:info "pgbench init: scale=${PGBENCH_SCALE}"
-    pgbench -i -s ${PGBENCH_SCALE} ${PGBENCH_INIT_EXTRA_ARGS} "${connstr}" > /tmp/pgbench_init.log 2>&1
-    local init_rc=$?
-    cat /tmp/pgbench_init.log | repro:log info
+    pgbench -i -s ${PGBENCH_SCALE} ${PGBENCH_INIT_EXTRA_ARGS} "${connstr}" 2>&1 | tee /tmp/pgbench_init.log | repro:log info
+    local init_rc=${PIPESTATUS[0]}
     [ $init_rc -ne 0 ] && {
         repro:error "pgbench init failed (rc=$init_rc), aborting run"
         return $init_rc
@@ -247,12 +246,9 @@ function postgresql:run:loadgen() {
         ${report_flag} \
         --progress=10 \
         ${PGBENCH_RUN_EXTRA_ARGS} \
-        "${connstr}" \
-        > /tmp/pgbench_run.log 2>&1
-    local run_rc=$?
+        "${connstr}" 2>&1 | tee /tmp/pgbench_run.log | repro:log info
+    local run_rc=${PIPESTATUS[0]}
 
-    # display output
-    cat /tmp/pgbench_run.log | repro:log info
     [ $run_rc -ne 0 ] && repro:warn "pgbench exited with rc=$run_rc"
 
     # parse results immediately (before signaling SUT) so they're saved even if handshake fails
