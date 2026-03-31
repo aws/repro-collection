@@ -14,19 +14,25 @@
 : ${PG_DBNAME:=pgbenchdb}
 : ${PG_HUGE_PAGES:=off}                    # off, try, on
 : ${PG_MAX_CONNECTIONS:=4096}
-: ${PG_WAL_LEVEL:=minimal}
-: ${PG_MAX_WAL_SENDERS:=0}
+: ${PG_WAL_LEVEL:=replica}
+: ${PG_MAX_WAL_SENDERS:=10}
 : ${PG_CHECKPOINT_TIMEOUT:=5min}
 : ${PG_CHECKPOINT_COMPLETION_TARGET:=0.9}
-: ${PG_EFFECTIVE_IO_CONCURRENCY:=200}
+: ${PG_EFFECTIVE_IO_CONCURRENCY:=300}
 : ${PG_MAX_WORKER_PROCESSES:=}             # auto: nproc
 : ${PG_MAX_PARALLEL_WORKERS:=}             # auto: nproc
 : ${PG_MAX_PARALLEL_WORKERS_PER_GATHER:=4}
 : ${PG_RANDOM_PAGE_COST:=1.1}
 : ${PG_SHARED_BUFFERS:=}                   # auto: ~25% RAM
 : ${PG_EFFECTIVE_CACHE_SIZE:=}             # auto: ~50% RAM
-: ${PG_WORK_MEM:=64MB}
+: ${PG_WORK_MEM:=1024MB}
 : ${PG_MAINTENANCE_WORK_MEM:=2GB}
+: ${PG_INITDB_OPTIONS:=--data-checksums --wal-segsize=64}
+: ${PG_FSYNC:=on}                          # on/off
+: ${PG_FULL_PAGE_WRITES:=on}               # on/off
+: ${PG_MAX_WAL_SIZE:=512GB}
+: ${PG_MIN_WAL_SIZE:=1GB}
+: ${PG_WAL_BUFFERS:=64MB}
 
 # --- pgbench ---
 : ${PGBENCH_SCALE:=100}                    # scale factor (-s); ~16MB per unit
@@ -54,7 +60,7 @@ function postgresql:help() {
 function postgresql:install:sut() {
     repro:info "SUT install: PostgreSQL ${PG_VERSION}"
     repro:package:update
-    repro:package:install postgresql${PG_VERSION}-server postgresql${PG_VERSION} mdadm xfsprogs
+    repro:package:install postgresql${PG_VERSION}-server postgresql${PG_VERSION} postgresql${PG_VERSION}-contrib mdadm xfsprogs
     postgresql:create_and_mount_raid
 }
 
@@ -131,12 +137,13 @@ function postgresql:configure:sut() {
 
     repro:cmd <<-EOT
         sudo systemctl stop postgresql 2>/dev/null || true
-        sudo rm -rf ${PG_DB_DATADIR}
+        sudo find ${PG_DB_DATADIR} -mindepth 1 -delete 2>/dev/null || true
         sudo mkdir -p ${PG_DB_DATADIR}
         sudo chown postgres:postgres ${PG_DB_DATADIR}
         sudo chmod 700 ${PG_DB_DATADIR}
-        sudo /usr/bin/postgresql-setup --initdb --unit postgresql
 EOT
+
+    repro:cmd sudo bash -c "'PGSETUP_INITDB_OPTIONS=\"${PG_INITDB_OPTIONS}\" /usr/bin/postgresql-setup --initdb --unit postgresql'"
 
     # write postgresql.conf from template
     repro:template <${REPRO_ROOT}/files/postgresql.conf.tmpl | sudo bash -c "cat >${PG_DB_DATADIR}/postgresql.conf"
@@ -146,21 +153,30 @@ EOT
     {
         echo "local   all   all                 trust"
         for ldg_host in ${REPROCFG_LOADGEN}; do
-            echo "host    all   all   ${ldg_host}/32     md5"
+            if [[ "$ldg_host" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                echo "host    all   all   ${ldg_host}/32     md5"
+            else
+                echo "host    all   all   ${ldg_host}     md5"
+            fi
         done
     } | sudo -u postgres bash -c "cat >${PG_DB_DATADIR}/pg_hba.conf"
 
     # system tuning
     repro:cmd <<-EOT
-        sudo sysctl -w vm.swappiness=1
-        sudo sysctl -w net.core.somaxconn=65535
-        sudo sysctl -w net.ipv4.tcp_max_syn_backlog=10000
-        sudo sysctl -w vm.overcommit_memory=2
-        sudo sysctl -w vm.overcommit_ratio=95
-        sudo sysctl -w vm.dirty_background_ratio=5
-        sudo sysctl -w vm.dirty_ratio=20
-        sudo sh -c 'echo never >/sys/kernel/mm/transparent_hugepage/enabled' 2>/dev/null || true
-        sudo sh -c 'echo never >/sys/kernel/mm/transparent_hugepage/defrag' 2>/dev/null || true
+        sudo sysctl -w net.core.somaxconn=65536
+        sudo sysctl -w net.ipv4.tcp_max_syn_backlog=65536
+        sudo sysctl -w net.ipv4.ip_local_port_range="1024 65000"
+        sudo sysctl -w net.core.rmem_max=8388608
+        sudo sysctl -w net.core.wmem_max=8388608
+        sudo sysctl -w net.ipv4.tcp_rmem="4096 65536 8388608"
+        sudo sysctl -w net.ipv4.tcp_wmem="4096 65536 8388608"
+        sudo sysctl -w net.ipv4.tcp_mem="8388608 8388608 8388608"
+        sudo sysctl -w vm.hugetlb_shm_group=2048
+
+        echo never | sudo tee /sys/kernel/mm/transparent_hugepage/enabled
+        echo never | sudo tee /sys/kernel/mm/transparent_hugepage/hugepages-16kB/enabled 2>/dev/null || true
+        echo never | sudo tee /sys/kernel/mm/transparent_hugepage/hugepages-64kB/enabled 2>/dev/null || true
+        echo never | sudo tee /sys/kernel/mm/transparent_hugepage/hugepages-2048kB/enabled 2>/dev/null || true
 EOT
 
     repro:cmd sudo systemctl start postgresql
