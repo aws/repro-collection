@@ -198,7 +198,7 @@ EOT
         sudo -u postgres psql -p ${PG_PORT} -tc "SELECT 1 FROM pg_database WHERE datname='${PG_DBNAME}'" | grep -q 1 || sudo -u postgres psql -p ${PG_PORT} -c "CREATE DATABASE ${PG_DBNAME} OWNER ${PG_USERNAME};"
 EOT
 
-    # signal LDG with SUT nproc
+    # wait for LDG to ask for nproc
     repro:wait_for_ldg nproc $(nproc)
 }
 
@@ -206,10 +206,6 @@ function postgresql:configure:loadgen() {
     repro:info "LDG configure"
     local SUT_vCPUs=$(repro:wait_for_sut nproc)
     repro:info "SUT vCPUs: $SUT_vCPUs, LDG vCPUs: $(nproc)"
-    if [ -z "$PGBENCH_THREADS" ]; then
-        PGBENCH_THREADS=$(nproc)
-    fi
-    repro:info "pgbench threads: $PGBENCH_THREADS"
 }
 
 # ============================================================
@@ -241,8 +237,8 @@ function postgresql:run:loadgen() {
 
     # initialize pgbench tables
     repro:info "pgbench init: scale=${PGBENCH_SCALE}"
-    pgbench -i -s ${PGBENCH_SCALE} ${PGBENCH_INIT_EXTRA_ARGS} "${connstr}" 2>&1 | tee /tmp/pgbench_init.log | repro:log info
-    local init_rc=${PIPESTATUS[0]}
+    repro:cmd "pgbench -i -s ${PGBENCH_SCALE} ${PGBENCH_INIT_EXTRA_ARGS} \"${connstr}\""
+    local init_rc=$?
     [ $init_rc -ne 0 ] && {
         repro:error "pgbench init failed (rc=$init_rc), aborting run"
         return $init_rc
@@ -253,25 +249,10 @@ function postgresql:run:loadgen() {
     [ "${PGBENCH_REPORT_PER_COMMAND}" = "true" ] && report_flag="-r"
 
     repro:info "pgbench run: clients=${PGBENCH_CLIENTS} threads=${PGBENCH_THREADS} duration=${PGBENCH_DURATION}s builtin=${PGBENCH_BUILTIN}"
-    pgbench \
-        -c ${PGBENCH_CLIENTS} \
-        -j ${PGBENCH_THREADS} \
-        -T ${PGBENCH_DURATION} \
-        -b ${PGBENCH_BUILTIN} \
-        -M ${PGBENCH_PROTOCOL} \
-        ${report_flag} \
-        --progress=10 \
-        ${PGBENCH_RUN_EXTRA_ARGS} \
-        "${connstr}" 2>&1 | tee /tmp/pgbench_run.log | repro:log info
-    local run_rc=${PIPESTATUS[0]}
-
-    [ $run_rc -ne 0 ] && repro:warn "pgbench exited with rc=$run_rc"
-
-    # parse results immediately (before signaling SUT) so they're saved even if handshake fails
-    postgresql:results:loadgen
+    repro:cmd "pgbench -c ${PGBENCH_CLIENTS} -j ${PGBENCH_THREADS} -T ${PGBENCH_DURATION} -b ${PGBENCH_BUILTIN} -M ${PGBENCH_PROTOCOL} ${report_flag} --progress=10 ${PGBENCH_RUN_EXTRA_ARGS} \"${connstr}\" 2>&1 | tee /tmp/pgbench_run.log"
 
     # signal SUT that we're done
-    repro:wait_for_sut "DONE" || repro:warn "SUT handshake failed, but results were already saved"
+    repro:wait_for_sut "DONE" || repro:warn "SUT handshake failed"
 }
 
 # ============================================================
