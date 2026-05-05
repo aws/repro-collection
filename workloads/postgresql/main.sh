@@ -12,7 +12,9 @@
 : ${PG_USERNAME:=pgbench_user}
 : ${PG_PASSWORD:=pgbench}
 : ${PG_DBNAME:=pgbenchdb}
-: ${PG_HUGE_PAGES:=off}                    # off, try, on
+: ${PG_HUGE_PAGES:=try}                    # off, try, on
+: ${SYSTEM_TRANSPARENT_HUGE_PAGES:=off}    # off = don't change THP; always|never|inherit|madvise = set THP to that value
+: ${PG_SYSTEM_NR_HUGEPAGES:=off}           # off = don't touch; on = allocate 2MB hugepages based on shared_buffers
 : ${PG_MAX_CONNECTIONS:=4096}
 : ${PG_WAL_LEVEL:=replica}
 : ${PG_MAX_WAL_SENDERS:=10}
@@ -131,6 +133,36 @@ function postgresql:_auto_size() {
     repro:info "Auto-sized: shared_buffers=${PG_SHARED_BUFFERS}, effective_cache_size=${PG_EFFECTIVE_CACHE_SIZE}, workers=${PG_MAX_WORKER_PROCESSES}"
 }
 
+function postgresql:_setup_nr_hugepages() {
+    if [ "${PG_SYSTEM_NR_HUGEPAGES}" != "on" ]; then
+        repro:info "nr_hugepages allocation disabled (PG_SYSTEM_NR_HUGEPAGES=${PG_SYSTEM_NR_HUGEPAGES})"
+        return 0
+    fi
+
+    # parse shared_buffers value to MB
+    local sb="${PG_SHARED_BUFFERS}"
+    local sb_mb=0
+    if [[ "$sb" =~ ^([0-9]+)[Gg][Bb]$ ]]; then
+        sb_mb=$(( ${BASH_REMATCH[1]} * 1024 ))
+    elif [[ "$sb" =~ ^([0-9]+)[Mm][Bb]$ ]]; then
+        sb_mb=${BASH_REMATCH[1]}
+    elif [[ "$sb" =~ ^([0-9]+)$ ]]; then
+        # bare number = kB in PG convention
+        sb_mb=$(( ${BASH_REMATCH[1]} / 1024 ))
+    fi
+
+    # nr_hugepages = shared_buffers_MB / 2 + 5% headroom, rounded up
+    local nr=$(( (sb_mb / 2) + (sb_mb / 2 / 20) + 1 ))
+    repro:info "Allocating ${nr} x 2MB hugepages for shared_buffers=${sb} (${sb_mb}MB)"
+    repro:cmd sudo sysctl -w vm.nr_hugepages=${nr}
+
+    # verify allocation
+    local got=$(cat /proc/sys/vm/nr_hugepages)
+    if [ "$got" -lt "$nr" ]; then
+        repro:warn "Requested ${nr} hugepages but only got ${got} — system may not have enough contiguous memory"
+    fi
+}
+
 function postgresql:configure:sut() {
     repro:info "SUT configure: PostgreSQL ${PG_VERSION}"
     postgresql:_auto_size
@@ -172,12 +204,21 @@ EOT
         sudo sysctl -w net.ipv4.tcp_wmem="4096 65536 8388608"
         sudo sysctl -w net.ipv4.tcp_mem="8388608 8388608 8388608"
         sudo sysctl -w vm.hugetlb_shm_group=2048
-
-        echo never | sudo tee /sys/kernel/mm/transparent_hugepage/enabled
-        echo never | sudo tee /sys/kernel/mm/transparent_hugepage/hugepages-16kB/enabled 2>/dev/null || true
-        echo never | sudo tee /sys/kernel/mm/transparent_hugepage/hugepages-64kB/enabled 2>/dev/null || true
-        echo never | sudo tee /sys/kernel/mm/transparent_hugepage/hugepages-2048kB/enabled 2>/dev/null || true
 EOT
+
+    # System Huge Pages settings
+    case "${SYSTEM_TRANSPARENT_HUGE_PAGES}" in
+        always|never|inherit|madvise)
+            repro:info "Setting THP to ${SYSTEM_TRANSPARENT_HUGE_PAGES}"
+            echo ${SYSTEM_TRANSPARENT_HUGE_PAGES} | sudo tee /sys/kernel/mm/transparent_hugepage/enabled
+            ;;
+        *)
+            repro:info "SYSTEM_TRANSPARENT_HUGE_PAGES=off: not changing system THP settings"
+            ;;
+    esac
+
+    # Allocate static 2MB hugepages if requested
+    postgresql:_setup_nr_hugepages
 
     repro:cmd sudo systemctl start postgresql
     repro:cmd sudo systemctl enable postgresql
