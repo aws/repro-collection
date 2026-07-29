@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bash-syntax:
+    name: Syntax-check all shell scripts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+
+      - name: Syntax-check all shell scripts
+        run: |
+          set -uo pipefail
+          fail=0
+          count=0
+          while IFS= read -r -d '' f; do
+            count=$((count + 1))
+            if bash -n "$f"; then
+              echo "OK   $f"
+            else
+              echo "FAIL $f"
+              fail=1
+            fi
+          done < <(find common workloads util scripts -type f -name '*.sh' -print0 | sort -z)
+          echo "Checked $count scripts"
+          [ "$count" -gt 0 ] || { echo "No scripts found — check paths"; exit 1; }
+          exit "$fail"
+
+  bats-tests:
+    name: bats unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+
+      - name: Install bats + helper libraries
+        uses: bats-core/bats-action@42fcc8700f773c075a16a90eb11674c0318ad507  # 3.0.1
+        with:
+          support-path: "${{ github.workspace }}/.bats-libs/bats-support"
+          assert-path: "${{ github.workspace }}/.bats-libs/bats-assert"
+          detik-install: false
+          file-install: false
+
+      - name: Run bats suites
+        env:
+          BATS_LIB_PATH: "${{ github.workspace }}/.bats-libs"
+        run: bats -r --print-output-on-failure tests/unit/
