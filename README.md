@@ -10,7 +10,7 @@ A light framework for, and a loose collection of tests, workloads, and repro pac
 1. Provide a unified approach to processing/outputting results, to facilitate meaningful comparisons between setups
 
 ### 1.2 What The Repro Framework DOESN'T Do
-* Manage infrastructure, security, or ACLs (create/delete instances, set up sudo and ssh, configure access and firewall, isolate the network, secure communication, etc)
+* Manage infrastructure, security, or ACLs (create/delete instances, set up sudo and ssh, configure access and firewall, isolate the network, secure communication, etc). The one exception is the optional convenience helper `scripts/aws_create_instance.sh` (see §1.4); it is not part of the framework and is not required to run any repro.
 * Act as a result repository (dashboard, result collection, persistent database, etc)
 * Provide an automation framework (queuing, scheduling, etc)
 * Pick the correct test approach for you (see https://github.com/aws/aws-graviton-getting-started/tree/main/perfrunbook to learn more about that)
@@ -36,6 +36,10 @@ When this is performed, the only mechanism employed (and recommended) is `sudo`,
 ### 1.4 Structure
 
 The repository consists of workloads identified with a unique name (each placed in an eponymous directory under `workloads/`), repro scenarios (all placed under `repros/`), framework files (placed under `common/`), and standalone utilities (placed under `util/`).
+
+Two further directories sit outside the framework proper:
+* `scripts/` - optional convenience helpers that are *not* part of the Repro Framework and are not needed to run any repro. These include `aws_create_instance.sh`, an env-var-driven wrapper around `aws ec2 run-instances` for spinning up a throw-away SUT/LDG instance (see §1.2 - infrastructure management is otherwise out of scope). Run `scripts/aws_create_instance.sh --help` for its options.
+* `tests/` - tests for the above, grouped by type: `tests/unit/` (bats unit tests, run with [bats](https://github.com/bats-core/bats-core); tests mirror the repo layout under `tests/unit/scripts/`, with shared helpers in `tests/unit/helpers/`) and `tests/integration/` (real-AWS end-to-end scripts, run on demand). Run the unit suite with `make unittest`.
 
 ### 1.5 Glossary
 
