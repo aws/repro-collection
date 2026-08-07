@@ -1,0 +1,20 @@
+Newidle load-balance counters from /proc/schedstat (version 15), summed over all
+32 scheduler domains on the SUT, delta across the measurement window.
+
+Fields are the CPU_NEWLY_IDLE group: lb_count, lb_balanced, lb_failed, lb_gained.
+In v15 each domain line is "domain<N> <cpumask>" followed by 8 counters for each
+of CPU_IDLE, CPU_NOT_IDLE, CPU_NEWLY_IDLE, so the newidle group starts at counter
+offset 16.
+
+variant   lb_count      lb_balanced   lb_failed    tasks_pulled
+bad         255,783        138,791       62,375       2,145,375
+good     22,970,965     12,573,980    4,162,020     659,916,869
+ratio          ~90x           ~91x         ~67x            ~308x
+
+The culprit commit scales the newidle balance budget by the domain's average load.
+On this 2-LLC part that nearly stops the balancer pulling waking tasks across LLCs
+while the server is near saturation: the bad kernel attempts newidle balancing ~90x
+less often and pulls ~308x fewer tasks. The tail-latency increase, and the lower
+max QPS under the SLO, follow from that.
+
+Raw snapshots: schedstat-{bad,good}-{before,after}

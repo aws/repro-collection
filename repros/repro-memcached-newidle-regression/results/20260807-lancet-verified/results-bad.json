@@ -1,0 +1,16 @@
+{
+    "score": [708819],
+    "score_units": "max QPS under latency_p99 <= 1000us",
+    "qps": [708819],
+    "slo_parameter": "latency_p99",
+    "slo_value_us": 1000,
+    "records": 2000000,
+    "value_size": 128,
+    "set_to_get_ratio": 0.2,
+    "protocol": "memcache-bin",
+    "load_generator": "lancet",
+    "run_label": "bad",
+    "slo_percentile_ci": "latency_p99=882.479us 95% CI [866.392, 900.012]us (width 33.6us, 3.81% of the value)",
+    "slo_percentile_us": 882.479
+}
+

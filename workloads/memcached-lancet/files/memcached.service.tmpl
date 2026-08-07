@@ -1,0 +1,11 @@
+[Unit]
+After=network.target remote-fs.target nss-lookup.target
+
+[Service]
+Type=simple
+ExecStart={{ MEMCACHED_BIN }} -u {{ MEMCACHED_USER }} --port {{ MEMCACHED_PORT }} --memory-limit {{ MEMCACHED_MEMORY_LIMIT }} --disable-evictions --conn-limit {{ MEMCACHED_CONN_LIMIT }} --lock-memory --threads {{ MEMCACHED_THREADS }} --extended {{ MEMCACHED_EXTENDED }} -R {{ MEMCACHED_MAX_REQS_PER_EVENT }}
+LimitMEMLOCK=infinity
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
