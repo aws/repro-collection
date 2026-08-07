@@ -10,7 +10,7 @@ The reference result set: the first run measured end to end by the code as it no
 | BAD 6.1.150-174.273 | 708,819 |
 | **Regression (bad vs good)** | **-11.1%** |
 
-**This is a single iteration per variant** -- one BAD measurement and one GOOD measurement, not a repeat of either, so no error bar is implied. An [earlier run](../20260804-lancet-verified) on the same kernel pair measured -20.0% (bad 732,764 vs good 915,749); the BAD scores agree within about 3% while the GOOD scores differ by about 13%. Read the magnitude as roughly 10-20% at this instance size.
+**This is a single iteration per variant** -- one BAD measurement and one GOOD measurement, not a repeat of either, so no error bar is implied. Two other runs of the same kernel pair are in this directory: [20260804](../20260804-lancet-verified) measured -20.0% (bad 732,764 vs good 915,749) and the [reverification](../20260807b-lancet-reverify) measured -17.8% (bad 757,816 vs good 921,774). Run-to-run spread is 6.9% on BAD and 15.7% on GOOD; read the magnitude as roughly 10-20% at this instance size.
 
 Both variants at 2,000,000 records, `binary-search` mode, SLO p99 <= 1000 us, `LANCET_NUM_RUNS=2`, `LANCET_RUN_LENGTH=60`. The p99 at each converged point was 882.5 us (bad) and 966.8 us (good), each with a 95% confidence interval under 4% of the value, so neither score sits on an unmeasured percentile.
 

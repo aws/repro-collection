@@ -2,16 +2,17 @@
 
 Reproduces the memcached regression introduced by upstream Linux commit `33cf66d88306` ("sched/fair: Proportional newidle balance"), first present in mainline **v6.19**. On CPUs with more than one last-level cache (LLC) the new proportional newidle balancer pulls fewer tasks across LLCs under memcached's bursty wakeup pattern, inflating tail latency under load and lowering the QPS sustainable under a latency SLO.
 
-Two runs of the same AL2023 kernel pair on an AMD c7a.4xlarge, both at 2,000,000 records and a 1 ms p99 SLO:
+Three runs of the same AL2023 kernel pair on an AMD c7a.4xlarge, all at 2,000,000 records and a 1 ms p99 SLO:
 
 | Run | BAD 6.1.150 | GOOD 6.1.148 | Delta |
 |---|---:|---:|---:|
+| [2026-08-07 reverification](results/20260807b-lancet-reverify) | 757,816 | 921,774 | **-17.8%** |
 | [2026-08-07](results/20260807-lancet-verified) | 708,819 | 796,930 | **-11.1%** |
 | [2026-08-04](results/20260804-lancet-verified) | 732,764 | 915,749 | **-20.0%** |
 
-**Each figure is a single iteration per variant** -- one measurement of BAD and one of GOOD, on separate 5-host fleets. They are not repeats of one another and no averaging or error bar is implied. The BAD scores agree closely (708,819 vs 732,764, about 3%); the GOOD scores differ more (796,930 vs 915,749), which is what moves the delta. Read the magnitude as roughly 10-20% at this instance size rather than a single number, and re-run before quoting a precise figure. The 2026-08-07 run is the one the code in this directory produced; the 2026-08-04 run predates a simplification of the workload and scenario and is kept for comparison.
+**Each figure is a single iteration per variant** -- one measurement of BAD and one of GOOD, on separate 5-host fleets. Run-to-run spread is 6.9% on BAD and 15.7% on GOOD, which is what moves the delta between runs. The regression reproduces in all three and the direction is never in doubt, but read the magnitude as roughly 10-20% at this instance size; three single-iteration runs do not average into a precise figure. The reverification run was produced from the committed tree against the current framework.
 
-The `/proc/schedstat` newidle counters from the 2026-08-07 run show the mechanism directly: the bad kernel attempts newidle load balancing about 90x less often and pulls about 308x fewer tasks across the measurement window. The effect was originally reported in the 5-11% range on other kernel and instance combinations.
+The `/proc/schedstat` newidle counters show the mechanism directly, and in the same direction in both runs that captured them: the bad kernel attempted newidle load balancing about 90x less often in the 2026-08-07 run and about 975x less often in the reverification, pulling far fewer tasks across LLCs in each case. The effect was originally reported in the 5-11% range on other kernel and instance combinations.
 
 ## Load generator: Lancet (why not memtier)
 

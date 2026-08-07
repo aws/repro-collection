@@ -1,0 +1,18 @@
+Newidle load-balance counters from /proc/schedstat (version 15), summed over all
+32 scheduler domains on the SUT, delta across the measurement window.
+
+Fields are the CPU_NEWLY_IDLE group: lb_count, lb_balanced, lb_failed, lb_gained.
+Each domain line is "domain<N> <cpumask>" followed by 8 counters for each of
+CPU_IDLE, CPU_NOT_IDLE, CPU_NEWLY_IDLE, so the newidle group starts at counter
+offset 16.
+
+variant   lb_count       lb_balanced    lb_failed     tasks_pulled
+bad          240,752         130,082       57,677        2,116,274
+good     234,888,503     125,778,972   78,876,268    9,665,162,900
+ratio           ~975x           ~967x       ~1368x            ~4567x
+
+The culprit scales the newidle balance budget by the domain's average load. On
+this 2-LLC part that nearly stops the balancer pulling waking tasks across LLCs
+while the server is near saturation.
+
+Raw snapshots: schedstat-{bad,good}-{before,after}
