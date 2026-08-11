@@ -1,0 +1,26 @@
+Newidle load-balance counters from /proc/schedstat, summed over all 32 scheduler
+domains on the SUT, delta across the measurement window.
+
+NOTE ON LAYOUT: mainline v6.19 emits schedstat **version 17**, not the version 15
+the AL2023 6.1 kernels emit. In v17 each domain line is
+
+    domain<N> <NAME> <cpumask>  followed by 11 counters for each of
+    CPU_IDLE, CPU_NOT_IDLE, CPU_NEWLY_IDLE (33), plus 12 trailing
+
+so the CPU_NEWLY_IDLE group starts at counter offset 22 -- not 16 as in v15,
+where there are 8 counters per idle type and no domain name. Parsing v17 with
+v15 offsets yields plausible-looking but wrong numbers.
+
+Fields below are the CPU_NEWLY_IDLE group: lb_count, lb_balanced, lb_failed, lb_gained.
+
+variant   lb_count        lb_balanced      lb_failed       tasks_pulled
+bad         37,172,414      16,076,277      17,966,476            2,528
+good       346,204,347     163,765,497     169,876,555           31,856
+ratio             9.31x           10.19x           9.46x           12.60x
+
+The culprit scales the newidle balance budget by the domain's average load. With
+the commit present the balancer attempts newidle balancing 9.3x less often and
+pulls 12.6x fewer tasks across the measurement window. This is the same direction
+as the AL2023 6.1 pair, measured here across a single-commit difference.
+
+Raw snapshots: schedstat-{bad,good}-{before,after}

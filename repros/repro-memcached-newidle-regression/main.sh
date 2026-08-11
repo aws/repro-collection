@@ -126,6 +126,31 @@ function scenario:require_variant() {
             [ "$rev" = "$(repro:get_persistent_var "${SCENARIO_NAME}" rev_bad)" ] && \
             repro:fatal "The revert did not apply: GOOD is at the same revision as BAD (${rev}), so both variants would be the same kernel. Check patches/${SCENARIO_KERNEL_TAG}/."
         repro:set_persistent_var "${SCENARIO_NAME}" "rev_${variant}" "$rev"
+        # Make the boot entry usable before asking for a reboot. On AL2023 `make
+        # install` writes only a bare /boot/vmlinuz with no initramfs, and
+        # kernel_from_src.sh then defaults grub to that path -- whose derived initrd
+        # name (initramfs-vmlinuz.img) does not exist, so the machine stops at the
+        # grub prompt and never comes back (verified 2026-08-10). Install a versioned
+        # vmlinuz + initramfs pair and point grub at it.
+        local kver
+        kver=$(ls -d /lib/modules/*-"${rev}" 2>/dev/null | head -1)
+        kver="${kver##*/}"
+        [ -n "$kver" ] || repro:fatal "No /lib/modules entry for build ${rev}; the kernel did not install."
+        [ -e "/boot/vmlinuz-${kver}" ] || repro:cmd sudo cp -f /boot/vmlinuz "/boot/vmlinuz-${kver}"
+        [ -e "/boot/initramfs-${kver}.img" ] || \
+            repro:cmd sudo dracut --force --kver "${kver}" "/boot/initramfs-${kver}.img"
+        repro:cmd sudo grubby --add-kernel="/boot/vmlinuz-${kver}" \
+            --initrd="/boot/initramfs-${kver}.img" --title="${kver}" \
+            --copy-default --make-default 2>/dev/null || \
+            repro:cmd sudo grubby --set-default "/boot/vmlinuz-${kver}"
+        # Check the outcome, not the status: both the kernel and its initramfs must
+        # exist and grub must actually point at them.
+        [ -e "/boot/vmlinuz-${kver}" ] && [ -e "/boot/initramfs-${kver}.img" ] || \
+            repro:fatal "Could not produce a bootable pair for ${kver} (vmlinuz and/or initramfs missing); rebooting would stop at the grub prompt."
+        case "$(sudo grubby --default-kernel 2>/dev/null)" in
+            *"${rev}"*) repro:info "grub default is the '$variant' build (${kver})" ;;
+            *) repro:fatal "Built ${kver} with a matching initramfs, but grub's default is $(sudo grubby --default-kernel 2>/dev/null); rebooting would boot the wrong kernel." ;;
+        esac
     fi
     # Signal the reboot the same way the sibling scenario does, so an external
     # controller can see why the run stopped.

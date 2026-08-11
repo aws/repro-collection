@@ -2,17 +2,18 @@
 
 Reproduces the memcached regression introduced by upstream Linux commit `33cf66d88306` ("sched/fair: Proportional newidle balance"), first present in mainline **v6.19**. On CPUs with more than one last-level cache (LLC) the new proportional newidle balancer pulls fewer tasks across LLCs under memcached's bursty wakeup pattern, inflating tail latency under load and lowering the QPS sustainable under a latency SLO.
 
-Three runs of the same AL2023 kernel pair on an AMD c7a.4xlarge, all at 2,000,000 records and a 1 ms p99 SLO:
+Four A/B runs on an AMD c7a.4xlarge (2 LLC), all at 2,000,000 records and a 1 ms p99 SLO:
 
-| Run | BAD 6.1.150 | GOOD 6.1.148 | Delta |
-|---|---:|---:|---:|
-| [2026-08-07 reverification](results/20260807b-lancet-reverify) | 757,816 | 921,774 | **-17.8%** |
-| [2026-08-07](results/20260807-lancet-verified) | 708,819 | 796,930 | **-11.1%** |
-| [2026-08-04](results/20260804-lancet-verified) | 732,764 | 915,749 | **-20.0%** |
+| Run | Kernels compared | BAD | GOOD | Delta |
+|---|---|---:|---:|---:|
+| [2026-08-11 build mode](results/20260811-build-v6.19-revert) | mainline v6.19 +/- the revert (**single commit**) | 791,893 | 885,884 | **-10.6%** |
+| [2026-08-07 reverification](results/20260807b-lancet-reverify) | AL2023 6.1.150 vs 6.1.148 | 757,816 | 921,774 | **-17.8%** |
+| [2026-08-07](results/20260807-lancet-verified) | AL2023 6.1.150 vs 6.1.148 | 708,819 | 796,930 | **-11.1%** |
+| [2026-08-04](results/20260804-lancet-verified) | AL2023 6.1.150 vs 6.1.148 | 732,764 | 915,749 | **-20.0%** |
 
-**Each figure is a single iteration per variant** -- one measurement of BAD and one of GOOD, on separate 5-host fleets. Run-to-run spread is 6.9% on BAD and 15.7% on GOOD, which is what moves the delta between runs. The regression reproduces in all three and the direction is never in doubt, but read the magnitude as roughly 10-20% at this instance size; three single-iteration runs do not average into a precise figure. The reverification run was produced from the committed tree against the current framework.
+**Each figure is a single iteration per variant.** The build-mode run is the one that attributes the effect to the commit itself: BAD and GOOD are the same mainline tag compiled on the same host minutes apart, differing only by `git am` of the revert in `patches/`, and the scenario records the two build revisions so a silently-failed revert cannot be measured as an A/B. The three AL2023 runs compare 6.1.148 against 6.1.150, a package-version difference that carries more than the one commit; their spread is 6.9% on BAD and 15.7% on GOOD. Read the magnitude as roughly 10-20% at this instance size, with the single-commit measurement at the low end of that range.
 
-The `/proc/schedstat` newidle counters show the mechanism directly, and in the same direction in both runs that captured them: the bad kernel attempted newidle load balancing about 90x less often in the 2026-08-07 run and about 975x less often in the reverification, pulling far fewer tasks across LLCs in each case. The effect was originally reported in the 5-11% range on other kernel and instance combinations.
+The `/proc/schedstat` newidle counters show the mechanism directly and in the same direction in every run that captured them: with the commit present the balancer attempted newidle load balancing about 9.3x less often on the single-commit v6.19 pair, and about 90x and 975x less often on the AL2023 pair, pulling far fewer tasks across LLCs in each case. Note that v6.19 emits schedstat version 17 while the 6.1 kernels emit version 15, and the two layouts put the newidle counters at different offsets -- each result set documents which it used. The effect was originally reported in the 5-11% range on other kernel and instance combinations.
 
 ## Load generator: Lancet (why not memtier)
 
