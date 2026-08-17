@@ -8,6 +8,7 @@
 
 # --- PostgreSQL ---
 : ${PG_VERSION:=17}
+: ${PG_LDG_VERSION:=}
 : ${PG_PORT:=5432}
 : ${PG_USERNAME:=pgbench_user}
 : ${PG_PASSWORD:=pgbench}
@@ -15,6 +16,7 @@
 : ${PG_HUGE_PAGES:=try}                    # off, try, on
 : ${SYSTEM_TRANSPARENT_HUGE_PAGES:=off}    # off = don't change THP; always|never|inherit|madvise = set THP to that value
 : ${PG_SYSTEM_NR_HUGEPAGES:=off}           # off = don't touch; on = allocate 2MB hugepages based on shared_buffers
+: ${PG_HUGEPAGE_PAD_PERCENT:=15}           # extra % of hugepages above shared_buffers calculation
 : ${PG_MAX_CONNECTIONS:=4096}
 : ${PG_WAL_LEVEL:=replica}
 : ${PG_MAX_WAL_SENDERS:=10}
@@ -51,6 +53,15 @@
 # SUT functions
 # ============================================================
 
+# Add a 'load' step (DB reload + pgbench -i) BEFORE 'run', so the external reproduce.sh controller
+# can restart PG between load and benchmark.
+# TODO: Consider to make 'load' step default across benchmarks.
+function postgresql:default_steps() {
+    local steps="install configure load run results"
+    $REPROCFG_CLEANUP && steps+=" cleanup"
+    echo "$steps"
+}
+
 function postgresql:help() {
     echo "Runs a PostgreSQL ${PG_VERSION} + pgbench benchmark."
     echo "Hosts required: 1 SUT (database) and 1 LDG (pgbench client)."
@@ -67,9 +78,16 @@ function postgresql:install:sut() {
 }
 
 function postgresql:install:loadgen() {
-    repro:info "LDG install: pgbench client"
+    repro:info "LDG install: pgbench client (target major: ${PG_LDG_VERSION:-<distro default>})"
     repro:package:update
-    repro:package:install postgresql${PG_VERSION}
+    # pgbench binary package differs by distro family:
+    #   Debian/Ubuntu    : postgresql-<N>       (pgbench is in the server pkg, NOT -client)
+    #   RPM (AL2023/RHEL): postgresql<N>-contrib (pgbench is in -contrib)
+    if type -t apt-get >/dev/null; then
+        repro:package:install "postgresql${PG_LDG_VERSION:+-${PG_LDG_VERSION}}"
+    else
+        repro:package:install postgresql${PG_LDG_VERSION} postgresql${PG_LDG_VERSION}-contrib
+    fi
 }
 
 # ---- RAID0 helper (auto-detect unused disks) ----
@@ -151,8 +169,8 @@ function postgresql:_setup_nr_hugepages() {
         sb_mb=$(( ${BASH_REMATCH[1]} / 1024 ))
     fi
 
-    # nr_hugepages = shared_buffers_MB / 2 + 5% headroom, rounded up
-    local nr=$(( (sb_mb / 2) + (sb_mb / 2 / 20) + 1 ))
+    # nr_hugepages = shared_buffers_MB / 2 + PG_HUGEPAGE_PAD_PERCENT% headroom, rounded up
+    local nr=$(( (sb_mb / 2) + (sb_mb / 2 * PG_HUGEPAGE_PAD_PERCENT / 100) + 1 ))
     repro:info "Allocating ${nr} x 2MB hugepages for shared_buffers=${sb} (${sb_mb}MB)"
     repro:cmd sudo sysctl -w vm.nr_hugepages=${nr}
 
@@ -253,46 +271,58 @@ function postgresql:configure:loadgen() {
 # Run
 # ============================================================
 
+# ---- helper: block until PG on the SUT is reachable from the LDG ----
+function postgresql:_wait_pg_reachable() {
+    repro:info "Waiting for PostgreSQL on ${REPROCFG_SUT}:${PG_PORT}"
+    local retries=180
+    while ! pg_isready -h ${REPROCFG_SUT} -p ${PG_PORT} -q 2>/dev/null; do
+        retries=$((retries - 1))
+        [ $retries -le 0 ] && repro:fatal "PostgreSQL on SUT not reachable in time"
+        sleep 1
+    done
+    repro:info "PostgreSQL on SUT is ready"
+}
+
+# ---- LOAD step (separate from run so the controller can restart PG in between) ----
+function postgresql:load:sut() {
+    repro:info "SUT waiting for LDG to finish the DB reload"
+    repro:wait_for_ldg "DONE" "OK"
+}
+
+function postgresql:load:loadgen() {
+    repro:info "LDG load: reload ${PG_DBNAME}, then pgbench -i"
+    [ -z "$PGBENCH_THREADS" ] && PGBENCH_THREADS=$(nproc)
+    local connstr="host=${REPROCFG_SUT} port=${PG_PORT} dbname=${PG_DBNAME} user=${PG_USERNAME} password=${PG_PASSWORD}"
+    local admstr="host=${REPROCFG_SUT} port=${PG_PORT} dbname=postgres user=${PG_USERNAME} password=${PG_PASSWORD}"
+    postgresql:_wait_pg_reachable
+
+    # # fresh DB each iteration
+    repro:cmd "psql \"${admstr}\" -c 'DROP DATABASE IF EXISTS ${PG_DBNAME} WITH (FORCE)'"
+    repro:cmd "psql \"${admstr}\" -c 'CREATE DATABASE ${PG_DBNAME} OWNER ${PG_USERNAME}'"
+    repro:info "pgbench init: scale=${PGBENCH_SCALE}"
+
+    # Load DB
+    repro:cmd "ulimit -n 65535; pgbench -i -s ${PGBENCH_SCALE} ${PGBENCH_INIT_EXTRA_ARGS} \"${connstr}\""
+    local init_rc=$?
+    [ $init_rc -ne 0 ] && { repro:error "pgbench init failed (rc=$init_rc)"; return $init_rc; }
+    repro:wait_for_sut "DONE" || repro:warn "SUT handshake failed after load"
+}
+
 function postgresql:run:sut() {
     repro:info "SUT ready, waiting for LDG to finish"
     repro:wait_for_ldg "DONE" "OK"
 }
 
 function postgresql:run:loadgen() {
-    repro:info "LDG run: pgbench against ${REPROCFG_SUT}:${PG_PORT}"
-    if [ -z "$PGBENCH_THREADS" ]; then
-        PGBENCH_THREADS=$(nproc)
-    fi
-
+    repro:info "LDG run: pgbench benchmark against ${REPROCFG_SUT}:${PG_PORT}"
+    [ -z "$PGBENCH_THREADS" ] && PGBENCH_THREADS=$(nproc)
     local connstr="host=${REPROCFG_SUT} port=${PG_PORT} dbname=${PG_DBNAME} user=${PG_USERNAME} password=${PG_PASSWORD}"
-
-    # wait for PG to be reachable on SUT
-    repro:info "Waiting for PostgreSQL on ${REPROCFG_SUT}:${PG_PORT}"
-    local retries=120
-    while ! pg_isready -h ${REPROCFG_SUT} -p ${PG_PORT} -q 2>/dev/null; do
-        retries=$((retries - 1))
-        [ $retries -le 0 ] && repro:fatal "PostgreSQL on SUT not reachable after 120s"
-        sleep 1
-    done
-    repro:info "PostgreSQL on SUT is ready"
-
-    # initialize pgbench tables
-    repro:info "pgbench init: scale=${PGBENCH_SCALE}"
-    repro:cmd "pgbench -i -s ${PGBENCH_SCALE} ${PGBENCH_INIT_EXTRA_ARGS} \"${connstr}\""
-    local init_rc=$?
-    [ $init_rc -ne 0 ] && {
-        repro:error "pgbench init failed (rc=$init_rc), aborting run"
-        return $init_rc
-    }
-
-    # run benchmark
+    postgresql:_wait_pg_reachable
     local report_flag=""
     [ "${PGBENCH_REPORT_PER_COMMAND}" = "true" ] && report_flag="-r"
 
     repro:info "pgbench run: clients=${PGBENCH_CLIENTS} threads=${PGBENCH_THREADS} duration=${PGBENCH_DURATION}s builtin=${PGBENCH_BUILTIN}"
-    repro:cmd "pgbench -c ${PGBENCH_CLIENTS} -j ${PGBENCH_THREADS} -T ${PGBENCH_DURATION} -b ${PGBENCH_BUILTIN} -M ${PGBENCH_PROTOCOL} ${report_flag} --progress=10 ${PGBENCH_RUN_EXTRA_ARGS} \"${connstr}\" 2>&1 | tee /tmp/pgbench_run.log"
-
-    # signal SUT that we're done
+    repro:cmd "ulimit -n 65535; pgbench -c ${PGBENCH_CLIENTS} -j ${PGBENCH_THREADS} -T ${PGBENCH_DURATION} -b ${PGBENCH_BUILTIN} -M ${PGBENCH_PROTOCOL} ${report_flag} --progress=10 ${PGBENCH_RUN_EXTRA_ARGS} \"${connstr}\" 2>&1 | tee /tmp/pgbench_run.log"
     repro:wait_for_sut "DONE" || repro:warn "SUT handshake failed"
 }
 
@@ -310,8 +340,6 @@ function postgresql:results:loadgen() {
     [ ! -f "$logfile" ] && repro:error "pgbench log not found at $logfile" && return 1
 
     local tps_incl tps_excl latency_avg latency_stddev
-    # PG17: "tps = 109587.158786 (without initial connection time)"
-    # PG<17: "tps = 109587.158786 (excluding connections establishing)"
     tps_excl=$(grep -oP 'tps = \K[0-9.]+(?= \((?:without|excluding))' "$logfile" | tail -1)
     tps_incl=$(grep -oP 'tps = \K[0-9.]+(?= \((?:including|with initial))' "$logfile" | tail -1)
     latency_avg=$(grep -oP 'latency average = \K[0-9.]+' "$logfile" | tail -1)
