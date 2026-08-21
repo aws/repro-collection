@@ -156,6 +156,15 @@ $install_kernel && {
     }
     sudo chmod +x $kernel
     ls -l $kernel
+
+    # make install may not build an initramfs; without one the boot entry below is
+    # unbootable and the host stops at the grub prompt.
+    kver=${kernel##*/vmlinuz-}
+    kver=${kver##*/vmlinux-}
+    if [ -d "/lib/modules/$kver" ] && [ ! -s "/boot/initramfs-${kver}.img" ]; then
+        echo "No initramfs for $kver; generating one"
+        sudo dracut --force --kver "$kver" "/boot/initramfs-${kver}.img" || exit 1
+    fi
     if [ -n "$(sudo bash -c 'type -t grub2-mkconfig')" ]; then
         sudo grub2-mkconfig -o /boot/grub2/grub.cfg
         [ -z "$(sudo bash -c 'type -t grubby')" ] && {
@@ -177,7 +186,13 @@ $install_kernel && {
                 rm -rf "$grbdir"
             )
         }
-        sudo grubby $grbarg --add-kernel=$kernel --make-default --title=$(basename $kernel)
+        # --add-kernel appends a duplicate entry on every re-run.
+        if sudo grubby --info="$kernel" >/dev/null 2>&1; then
+            sudo grubby $grbarg --set-default="$kernel"
+        else
+            sudo grubby $grbarg --add-kernel=$kernel --make-default --title=$(basename $kernel) \
+                ${kver:+--initrd="/boot/initramfs-${kver}.img"}
+        fi
         #sudo grubby --set-default "$kernel"
     else
         KERNELVER=${kernel#*-}
