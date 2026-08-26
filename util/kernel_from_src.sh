@@ -190,7 +190,7 @@ $install_kernel && {
         if sudo grubby --info="$kernel" >/dev/null 2>&1; then
             sudo grubby $grbarg --set-default="$kernel"
         else
-            sudo grubby $grbarg --add-kernel=$kernel --make-default --title=$(basename $kernel) \
+            sudo grubby $grbarg --add-kernel=$kernel --make-default --copy-default --title=$(basename $kernel) \
                 ${kver:+--initrd="/boot/initramfs-${kver}.img"}
         fi
         #sudo grubby --set-default "$kernel"
