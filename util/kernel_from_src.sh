@@ -161,7 +161,7 @@ $install_kernel && {
     # unbootable and the host stops at the grub prompt.
     kver=${kernel##*/vmlinuz-}
     kver=${kver##*/vmlinux-}
-    if [ -d "/lib/modules/$kver" ] && [ ! -s "/boot/initramfs-${kver}.img" ]; then
+    if type -t dracut >/dev/null && [ -d "/lib/modules/$kver" ] && [ ! -s "/boot/initramfs-${kver}.img" ]; then
         echo "No initramfs for $kver; generating one"
         sudo dracut --force --kver "$kver" "/boot/initramfs-${kver}.img" || exit 1
     fi
