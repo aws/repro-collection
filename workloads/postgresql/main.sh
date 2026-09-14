@@ -342,6 +342,12 @@ function postgresql:results:loadgen() {
 
     [ ! -f "$logfile" ] && repro:error "pgbench log not found at $logfile" && return 1
 
+    if ! grep -q 'tps = ' "$logfile"; then
+        repro:error "pgbench produced no tps summary in $logfile (the run likely failed):"
+        repro:error "$(grep -iE 'error|fatal|shutting down|starting up|could not connect' "$logfile" | tail -5)"
+        return 1
+    fi
+
     local tps_incl tps_excl latency_avg latency_stddev
     # PG17: "tps = 109587.158786 (without initial connection time)"
     # PG<17: "tps = 109587.158786 (excluding connections establishing)"
