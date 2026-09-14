@@ -241,13 +241,18 @@ if $install_kernel; then
     sudo chmod +x $kernel
     ls -l $kernel
 
+    # Release string (e.g. 7.2.0-rc7-<gitrev>) from make, not parsed off the image name.
+    KVER="$(make -s kernelrelease LOCALVERSION=-$gitrev 2>/dev/null | tail -n1)"
+    [ -n "$KVER" ] || { KVER="$(basename "$kernel")"; KVER="${KVER#*-}"; }
+
+    # Machine-readable, so a caller can assert `uname -r` equals what was built.
+    echo "KERNEL_FROM_SRC_RELEASE=$KVER"
+
     # make install may not build an initramfs; without one the boot entry below is
     # unbootable and the host stops at the grub prompt.
-    kver=${kernel##*/vmlinuz-}
-    kver=${kver##*/vmlinux-}
-    if type -t dracut >/dev/null && [ -d "/lib/modules/$kver" ] && [ ! -s "$BOOT_DIR/initramfs-${kver}.img" ]; then
-        echo "No initramfs for $kver; generating one"
-        sudo dracut --force --kver "$kver" "$BOOT_DIR/initramfs-${kver}.img" || exit 1
+    if type -t dracut >/dev/null && [ -d "/lib/modules/$KVER" ] && [ ! -s "$BOOT_DIR/initramfs-${KVER}.img" ]; then
+        echo "No initramfs for $KVER; generating one"
+        sudo dracut --force --kver "$KVER" "$BOOT_DIR/initramfs-${KVER}.img" || exit 1
     fi
     if [ -n "$(sudo bash -c 'type -t grub2-mkconfig')" ]; then
         sudo grub2-mkconfig -o "$GRUB2_CFG"
@@ -275,11 +280,11 @@ if $install_kernel; then
             sudo grubby $grbarg --set-default="$kernel"
         else
             sudo grubby $grbarg --add-kernel=$kernel --make-default --copy-default --title=$(basename $kernel) \
-                ${kver:+--initrd="$BOOT_DIR/initramfs-${kver}.img"}
+                ${KVER:+--initrd="$BOOT_DIR/initramfs-${KVER}.img"}
         fi
         #sudo grubby --set-default "$kernel"
     else
-        KERNELVER=${kernel#*-}
+        KERNELVER="$KVER"
         MID=$(sudo awk '/Advanced options for Ubuntu/{print $(NF-1)}' "$GRUB_CFG" | cut -d\' -f2)
         KID=$(sudo awk "/with Linux $KERNELVER/"'{print $(NF-1)}' "$GRUB_CFG" | grep -v recovery | cut -d\' -f2 | head -n1)
         [ -n "$MID" ] && [ -n "$KID" ] \
