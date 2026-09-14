@@ -8,6 +8,7 @@
 
 # --- PostgreSQL ---
 : ${PG_VERSION:=17}
+: ${PG_LDG_VERSION=${PG_VERSION}}          # Unset -> match the server (PG_VERSION); Empty -> use the distro default package
 : ${PG_PORT:=5432}
 : ${PG_USERNAME:=pgbench_user}
 : ${PG_PASSWORD:=pgbench}
@@ -47,6 +48,9 @@
 : ${PGBENCH_PROTOCOL:=prepared}            # simple, extended, prepared
 : ${PGBENCH_REPORT_PER_COMMAND:=true}      # --report-per-command / -r
 
+# --- Other ---
+: ${LDG_PKG_ATTEMPTS:=3}                   # how many times to try installing the pgbench client.
+
 # ============================================================
 # SUT functions
 # ============================================================
@@ -57,6 +61,9 @@ function postgresql:help() {
     echo "Results are measured on the LDG and written to \${WORKLOAD_RESULTS_FILE}."
     echo "Recommended: 2+ fast NVMe disks on the SUT for RAID0 on ${PG_DB_MOUNTPOINT}."
     echo "If no RAID is found, available disks are auto-detected and assembled."
+    echo
+    echo "PG_LDG_VERSION (${PG_LDG_VERSION:-<distro default>}): pgbench package major on the LDG;"
+    echo "  set-but-empty uses the distro default (Ubuntu carries only one major)."
 }
 
 function postgresql:install:sut() {
@@ -66,10 +73,33 @@ function postgresql:install:sut() {
     postgresql:create_and_mount_raid
 }
 
+function postgresql:_ldg_clients_ok() {
+    # Dry mode installs nothing, so probing for the clients would always fail.
+    $REPROCFG_DYRUN && return 0
+    pgbench --version >/dev/null 2>&1 && psql --version >/dev/null 2>&1
+}
+
 function postgresql:install:loadgen() {
     repro:info "LDG install: pgbench client"
-    repro:package:update
-    repro:package:install postgresql${PG_VERSION}
+    # pgbench binary package differs by distro family.
+    local attempt
+    for attempt in $(seq 1 "${LDG_PKG_ATTEMPTS}"); do
+        if type -t apt-get >/dev/null; then
+            repro:info "Ubuntu/Debian LDG: installing distro-default postgresql-client (attempt ${attempt}/${LDG_PKG_ATTEMPTS})"
+            repro:package:update
+            repro:package:install postgresql-client postgresql-contrib
+        else
+            repro:info "RPM LDG: installing postgresql${PG_LDG_VERSION}(-contrib) (attempt ${attempt}/${LDG_PKG_ATTEMPTS})"
+            repro:package:install postgresql${PG_LDG_VERSION} postgresql${PG_LDG_VERSION}-contrib
+        fi
+
+        postgresql:_ldg_clients_ok && break
+        repro:warn "pgbench/psql not usable after attempt ${attempt}; retrying ..."
+        sleep 5
+    done
+
+    postgresql:_ldg_clients_ok \
+        || repro:fatal "pgbench and/or psql not usable after ${LDG_PKG_ATTEMPTS} attempts; the LDG package install failed or the mirror was unreachable."
 }
 
 # ---- RAID0 helper (auto-detect unused disks) ----
