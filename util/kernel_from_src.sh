@@ -1,7 +1,7 @@
 #!/bin/bash
 
 [ "$1" = "--help" ] && {
-    echo "Usage: $0 [--install] [--version=<kernel_tag>] [--path=<linux_dir>] [--repo=<git_repo>] [--reuse-build] [--upgrade] [--offline-mode] [<config_option>=<value> [...]]"
+    echo "Usage: $0 [--install] [--version=<kernel_tag>] [--path=<linux_dir>] [--repo=<git_repo>] [--reuse-build] [--no-perf] [--upgrade] [--offline-mode] [<config_option>=<value> [...]]"
     echo "       $0 --setup-only"
     echo "       $0 --help"
     echo "Build the Linux kernel (optionally download from repo and activate it after building)."
@@ -17,6 +17,7 @@
 : ${install_kernel:=false} # default: just build the kernel, don't install it
 : ${use_suse_repo:=false}  # default: use mainline Linux repo, not SUSE (only for SUSE hosts)
 : ${reuse_build:=false}    # default: if the given tag is already built, assume the config hasn't changed and reuse the kernel
+: ${build_perf:=true}      # default: build and install perf from the kernel tree (--no-perf to skip)
 : ${upgrade_packages:=false} # default: install build deps only; --upgrade also upgrades the whole distro
 : ${BOOT_DIR:=/boot}       # where kernel configs/images live and get installed (override for chroot/alt-boot builds and tests)
 # Bootloader paths, overridable like BOOT_DIR (also keeps a test run from
@@ -41,6 +42,7 @@ while [ $# -gt 0 ]; do
         --version=*) LINUX_TAG="${1#*=}";;
         --patch-dir=*) LINUX_PATCHDIR="${1#*=}";;
         --reuse-build) reuse_build=true;;
+        --no-perf) build_perf=false;;
         --upgrade) upgrade_packages=true;;
         --) shift; break;;
         --*) err_exit "Unknown argument: $1";;
@@ -202,11 +204,15 @@ else
     make olddefconfig || err_exit "make olddefconfig failed"
     time make -j $(nproc) LOCALVERSION=-$gitrev || err_exit "Kernel build failed"
 fi
-[ -x $PERF_DIR/perf-${LINUX_TAG}-${gitrev} ] || {
+if ! $build_perf; then
+    echo "Skipping perf build (--no-perf)"
+elif [ -x $PERF_DIR/perf-${LINUX_TAG}-${gitrev} ]; then
+    echo "Reusing previously built perf $PERF_DIR/perf-${LINUX_TAG}-${gitrev}"
+else
     echo "Building perf..."
     make EXTRA_CFLAGS=-Wno-maybe-uninitialized clean all -j $(nproc) -C tools/perf
     sudo cp tools/perf/perf $PERF_DIR/perf-${LINUX_TAG}-${gitrev} || err_exit "Perf tool failed to build."
-}
+fi
 [ "$CPU" = aarch64 -o "$HOSTTYPE" = aarch64 ] && arch=arm64 || arch=x86
 ls -l arch/$arch/boot/*Image*
 
@@ -214,9 +220,11 @@ if $install_kernel; then
     echo "Installing kernel..."
     sudo make modules_install -j $(nproc) || err_exit "make modules_install failed"
     sudo make install -j $(nproc) || err_exit "make install failed"
-    [ -x $PERF_DIR/perf-${LINUX_TAG}-${gitrev} ] && sudo ln -sf $PERF_DIR/perf-${LINUX_TAG}-${gitrev} $PERF_DIR/perf
-    perf --version
-    ls -l $PERF_DIR/perf $BOOT_DIR/*-$gitrev*
+    $build_perf && [ -x $PERF_DIR/perf-${LINUX_TAG}-${gitrev} ] && {
+        sudo ln -sf $PERF_DIR/perf-${LINUX_TAG}-${gitrev} $PERF_DIR/perf
+        perf --version
+    }
+    ls -l $BOOT_DIR/*-$gitrev*
     kernel="$(find_kernel $gitrev $(realpath $BOOT_DIR/vmlinuz))"
     [ -z "$kernel" ] && {
         echo >&2 "Can't find $BOOT_DIR/vmlinu*-$gitrev, copying manually"
