@@ -63,11 +63,20 @@ $offline_mode || {
         #sudo zypper --non-interactive install -y git gcc flex bison ncurses-devel openssl-devel make  # TODO: fix build on older SUSE hosts
     elif type -t yum >/dev/null; then
         $upgrade_packages && { sudo yum update -y; sudo yum upgrade -y; }
-        sudo yum -y groupinstall 'Development Tools'
+        sudo yum -y groupinstall 'Development Tools' || {
+            echo "groupinstall failed; clearing dnf cache and retrying ..."
+            sudo yum clean packages -y || true
+            sudo yum -y groupinstall 'Development Tools'
+        }
         sudo yum -y install flex bison ncurses-devel elfutils-libelf-devel openssl-devel dwarves
     else
         err_exit "Unknown package manager"
     fi
+
+    # Fail fast if the toolchain did not land
+    for _tool in make gcc; do
+        type -t "$_tool" >/dev/null || err_exit "Build dependency '$_tool' missing after install; the package transaction likely failed. Re-run, or install build tools manually."
+    done
 }
 
 [ -z "$LINUX_DIR" ] && for LINUX_DIR in . linux-next linux; do
@@ -186,11 +195,13 @@ function find_kernel() {
 }
 
 gitrev=$(git rev-parse --short HEAD)
-[ $reuse_build -a -n "$(find_kernel $gitrev)" ] && echo "Reusing previously built kernel $gitrev" || {
+if $reuse_build && [ -n "$(find_kernel "$gitrev")" ]; then
+    echo "Reusing previously built kernel $gitrev"
+else
     echo "Building kernel $LINUX_TAG $gitrev..."
-    make olddefconfig
-    time make -j $(nproc) LOCALVERSION=-$gitrev
-}
+    make olddefconfig || err_exit "make olddefconfig failed"
+    time make -j $(nproc) LOCALVERSION=-$gitrev || err_exit "Kernel build failed"
+fi
 [ -x $PERF_DIR/perf-${LINUX_TAG}-${gitrev} ] || {
     echo "Building perf..."
     make EXTRA_CFLAGS=-Wno-maybe-uninitialized clean all -j $(nproc) -C tools/perf
@@ -199,10 +210,10 @@ gitrev=$(git rev-parse --short HEAD)
 [ "$CPU" = aarch64 -o "$HOSTTYPE" = aarch64 ] && arch=arm64 || arch=x86
 ls -l arch/$arch/boot/*Image*
 
-$install_kernel && {
+if $install_kernel; then
     echo "Installing kernel..."
-    sudo make modules_install -j $(nproc)
-    sudo make install -j $(nproc)
+    sudo make modules_install -j $(nproc) || err_exit "make modules_install failed"
+    sudo make install -j $(nproc) || err_exit "make install failed"
     [ -x $PERF_DIR/perf-${LINUX_TAG}-${gitrev} ] && sudo ln -sf $PERF_DIR/perf-${LINUX_TAG}-${gitrev} $PERF_DIR/perf
     perf --version
     ls -l $PERF_DIR/perf $BOOT_DIR/*-$gitrev*
@@ -263,9 +274,11 @@ $install_kernel && {
         KERNELVER=${kernel#*-}
         MID=$(sudo awk '/Advanced options for Ubuntu/{print $(NF-1)}' "$GRUB_CFG" | cut -d\' -f2)
         KID=$(sudo awk "/with Linux $KERNELVER/"'{print $(NF-1)}' "$GRUB_CFG" | grep -v recovery | cut -d\' -f2 | head -n1)
+        [ -n "$MID" ] && [ -n "$KID" ] \
+            || err_exit "Could not find a '$KERNELVER' entry under 'Advanced options for Ubuntu' in $GRUB_CFG; refusing to write an empty GRUB_DEFAULT"
         sudo sed -i '/^GRUB_DEFAULT=/s/=.*/="'"${MID}>${KID}"'"/' "$GRUB_DEFAULT_FILE"
         grep ^GRUB_DEFAULT "$GRUB_DEFAULT_FILE"
         sudo update-grub
     fi
     echo "Kernel: $(ls -l $kernel)"
-}
+fi
