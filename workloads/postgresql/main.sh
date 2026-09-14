@@ -48,6 +48,8 @@
 : ${PGBENCH_RUN_EXTRA_ARGS:=}              # extra args for pgbench run
 : ${PGBENCH_PROTOCOL:=prepared}            # simple, extended, prepared
 : ${PGBENCH_REPORT_PER_COMMAND:=true}      # --report-per-command / -r
+: ${PGBENCH_LOG:=${REPROCFG_TMP}/pgbench_run.log} # throwaway pgbench output log (parsed by results)
+: ${PGBENCH_NOFILE:=65535}                 # open-file limit for pgbench (needs one fd per client)
 
 # --- Other ---
 : ${LDG_PKG_ATTEMPTS:=3}                   # how many times to try installing the pgbench client.
@@ -309,7 +311,7 @@ function postgresql:run:loadgen() {
 
     # initialize pgbench tables
     repro:info "pgbench init: scale=${PGBENCH_SCALE}"
-    repro:cmd "pgbench -i -s ${PGBENCH_SCALE} ${PGBENCH_INIT_EXTRA_ARGS} \"${connstr}\""
+    repro:cmd "ulimit -n ${PGBENCH_NOFILE}; pgbench -i -s ${PGBENCH_SCALE} ${PGBENCH_INIT_EXTRA_ARGS} \"${connstr}\""
     local init_rc=$?
     [ $init_rc -ne 0 ] && {
         repro:error "pgbench init failed (rc=$init_rc), aborting run"
@@ -321,7 +323,7 @@ function postgresql:run:loadgen() {
     [ "${PGBENCH_REPORT_PER_COMMAND}" = "true" ] && report_flag="-r"
 
     repro:info "pgbench run: clients=${PGBENCH_CLIENTS} threads=${PGBENCH_THREADS} duration=${PGBENCH_DURATION}s builtin=${PGBENCH_BUILTIN}"
-    repro:cmd "pgbench -c ${PGBENCH_CLIENTS} -j ${PGBENCH_THREADS} -T ${PGBENCH_DURATION} -b ${PGBENCH_BUILTIN} -M ${PGBENCH_PROTOCOL} ${report_flag} --progress=10 ${PGBENCH_RUN_EXTRA_ARGS} \"${connstr}\" 2>&1 | tee /tmp/pgbench_run.log"
+    repro:cmd "ulimit -n ${PGBENCH_NOFILE}; pgbench -c ${PGBENCH_CLIENTS} -j ${PGBENCH_THREADS} -T ${PGBENCH_DURATION} -b ${PGBENCH_BUILTIN} -M ${PGBENCH_PROTOCOL} ${report_flag} --progress=10 ${PGBENCH_RUN_EXTRA_ARGS} \"${connstr}\" 2>&1 | tee ${PGBENCH_LOG}"
 
     # signal SUT that we're done
     repro:wait_for_sut "DONE" || repro:warn "SUT handshake failed"
@@ -336,7 +338,7 @@ function postgresql:results:loadgen() {
 
     [ "$WORKLOAD_RESULTS_FORMAT" != json ] && repro:error "Unsupported results format: $WORKLOAD_RESULTS_FORMAT" && return 1
 
-    local logfile=/tmp/pgbench_run.log
+    local logfile="${PGBENCH_LOG}"
 
     [ ! -f "$logfile" ] && repro:error "pgbench log not found at $logfile" && return 1
 
@@ -388,6 +390,6 @@ EOT
 
 function postgresql:cleanup:loadgen() {
     repro:info "LDG cleanup"
-    rm -f /tmp/pgbench_run.log
+    rm -f "${PGBENCH_LOG}"
     return 0
 }
