@@ -119,7 +119,13 @@ else
 fi
 type -t ec2metadata >/dev/null || type -t ec2-metadata >/dev/null && {
     echo "CONFIG_NET_VENDOR_AMAZON=y" >> .config
-    echo "CONFIG_ENA_ETHERNET=m" >> .config
+    # The Amazon Linux tree ships its own ENA driver that also builds ena.ko, so
+    # adding the mainline one makes `make modules_check` abort on a duplicate.
+    if [ -d drivers/amazon/net/ena ]; then
+        echo "Downstream Amazon ENA driver present; leaving CONFIG_ENA_ETHERNET as seeded (avoids ena.ko conflict)"
+    else
+        echo "CONFIG_ENA_ETHERNET=m" >> .config
+    fi
 }
 if type -t apt-get >/dev/null; then
     ./scripts/config --set-str CONFIG_SYSTEM_TRUSTED_KEYS ""
