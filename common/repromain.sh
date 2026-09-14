@@ -224,6 +224,24 @@ function repro:get_persistent_file() {
     echo "$state"
 }
 
+# Flat KEY=value resource files
+# args: <file> <KEY>  -> the recorded value, or "" if the file or key is absent
+function repro:resource:get() {
+    [ -f "$1" ] || return 0
+    # Keys are uppercase [A-Z0-9_], so '/' is always a safe sed delimiter.
+    # tail guards against a manually duplicated line.
+    sed -n "s/^$2=//p" "$1" 2>/dev/null | tail -n1
+}
+# args: <file> <KEY> <VALUE>  - upsert, keeping a single line per key
+function repro:resource:set() {
+    local f="$1" key="$2" val="$3"
+    mkdir -p "$(dirname "${f}")" || { repro:warn "Could not create resource dir for ${f}"; return 1; }
+    touch "${f}" || { repro:warn "Could not write resource file ${f}"; return 1; }
+    # The backup extension keeps this working on non-GNU sed too.
+    sed -i.bak "/^${key}=/d" "${f}" && rm -f "${f}.bak"
+    printf '%s=%s\n' "${key}" "${val}" >> "${f}"
+}
+
 # args: <filename>
 function repro:lock_mkname() {
     local lock=/tmp/repro_$(md5sum <<<"${1}"); lock=${lock%% *}.lck
