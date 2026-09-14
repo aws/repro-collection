@@ -16,6 +16,7 @@
 : ${PG_HUGE_PAGES:=try}                    # off, try, on
 : ${SYSTEM_TRANSPARENT_HUGE_PAGES:=off}    # off = don't change THP; always|never|inherit|madvise = set THP to that value
 : ${PG_SYSTEM_NR_HUGEPAGES:=off}           # off = don't touch; on = allocate 2MB hugepages based on shared_buffers
+: ${PG_HUGEPAGE_PAD_PERCENT:=5}            # extra % of hugepages above shared_buffers (repro scenarios may raise this)
 : ${PG_MAX_CONNECTIONS:=4096}
 : ${PG_WAL_LEVEL:=replica}
 : ${PG_MAX_WAL_SENDERS:=10}
@@ -181,8 +182,8 @@ function postgresql:_setup_nr_hugepages() {
         sb_mb=$(( ${BASH_REMATCH[1]} / 1024 ))
     fi
 
-    # nr_hugepages = shared_buffers_MB / 2 + 5% headroom, rounded up
-    local nr=$(( (sb_mb / 2) + (sb_mb / 2 / 20) + 1 ))
+    # nr_hugepages = shared_buffers_MB / 2 + PG_HUGEPAGE_PAD_PERCENT% headroom, rounded up
+    local nr=$(( (sb_mb / 2) + (sb_mb / 2 * PG_HUGEPAGE_PAD_PERCENT / 100) + 1 ))
     repro:info "Allocating ${nr} x 2MB hugepages for shared_buffers=${sb} (${sb_mb}MB)"
     repro:cmd sudo sysctl -w vm.nr_hugepages=${nr}
 
