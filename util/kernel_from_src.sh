@@ -15,6 +15,13 @@
 : ${install_kernel:=false} # default: just build the kernel, don't install it
 : ${use_suse_repo:=false}  # default: use mainline Linux repo, not SUSE (only for SUSE hosts)
 : ${reuse_build:=false}    # default: if the given tag is already built, assume the config hasn't changed and reuse the kernel
+: ${BOOT_DIR:=/boot}       # where kernel configs/images live and get installed (override for chroot/alt-boot builds and tests)
+# Bootloader paths, overridable like BOOT_DIR (also keeps a test run from
+# touching the real /etc/default/grub or grub.cfg).
+: ${GRUB_DEFAULT_FILE:=/etc/default/grub}   # distro grub defaults (GRUB_DEFAULT=...)
+: ${GRUB2_CFG:=${BOOT_DIR}/grub2/grub.cfg}  # RPM/SUSE generated menu
+: ${GRUB_CFG:=${BOOT_DIR}/grub/grub.cfg}    # Debian/Ubuntu generated menu
+: ${PERF_DIR:=/usr/local/bin} # where the built perf binary is installed
 
 function err_exit() {
     echo "FATAL: $@" >&2
@@ -96,7 +103,7 @@ $setup_only && {
     done
 }
 
-cp -v /boot/config-$(uname -r) .config
+cp -v "$BOOT_DIR/config-$(uname -r)" .config
 type -t ec2metadata >/dev/null || type -t ec2-metadata >/dev/null && {
     echo "CONFIG_NET_VENDOR_AMAZON=y" >> .config
     echo "CONFIG_ENA_ETHERNET=m" >> .config
@@ -115,7 +122,7 @@ function find_kernel() {
     local kernel gitrev="${1:-$(git rev-parse --short HEAD)}"
     shift
     shopt -s nullglob
-    for kernel in /boot/vmlinu*-$gitrev /boot/vmlinu*-${gitrev}.gz /boot/Image*-$gitrev /boot/Image*-$gitrev.gz "$@"; do
+    for kernel in $BOOT_DIR/vmlinu*-$gitrev $BOOT_DIR/vmlinu*-${gitrev}.gz $BOOT_DIR/Image*-$gitrev $BOOT_DIR/Image*-$gitrev.gz "$@"; do
         [ -e "$kernel" ] && echo "$kernel" && break
     done
 }
@@ -126,10 +133,10 @@ gitrev=$(git rev-parse --short HEAD)
     make olddefconfig
     time make -j $(nproc) LOCALVERSION=-$gitrev
 }
-[ -x /usr/local/bin/perf-${LINUX_TAG}-${gitrev} ] || {
+[ -x $PERF_DIR/perf-${LINUX_TAG}-${gitrev} ] || {
     echo "Building perf..."
     make EXTRA_CFLAGS=-Wno-maybe-uninitialized clean all -j $(nproc) -C tools/perf
-    sudo cp tools/perf/perf /usr/local/bin/perf-${LINUX_TAG}-${gitrev} || err_exit "Perf tool failed to build."
+    sudo cp tools/perf/perf $PERF_DIR/perf-${LINUX_TAG}-${gitrev} || err_exit "Perf tool failed to build."
 }
 [ "$CPU" = aarch64 -o "$HOSTTYPE" = aarch64 ] && arch=arm64 || arch=x86
 ls -l arch/$arch/boot/*Image*
@@ -138,18 +145,18 @@ $install_kernel && {
     echo "Installing kernel..."
     sudo make modules_install -j $(nproc)
     sudo make install -j $(nproc)
-    [ -x /usr/local/bin/perf-${LINUX_TAG}-${gitrev} ] && sudo ln -sf /usr/local/bin/perf-${LINUX_TAG}-${gitrev} /usr/local/bin/perf
+    [ -x $PERF_DIR/perf-${LINUX_TAG}-${gitrev} ] && sudo ln -sf $PERF_DIR/perf-${LINUX_TAG}-${gitrev} $PERF_DIR/perf
     perf --version
-    ls -l /usr/local/bin/perf /boot/*-$gitrev*
-    kernel="$(find_kernel $gitrev $(realpath /boot/vmlinuz))"
+    ls -l $PERF_DIR/perf $BOOT_DIR/*-$gitrev*
+    kernel="$(find_kernel $gitrev $(realpath $BOOT_DIR/vmlinuz))"
     [ -z "$kernel" ] && {
-        echo >&2 "Can't find /boot/vmlinu*-$gitrev, copying manually"
+        echo >&2 "Can't find $BOOT_DIR/vmlinu*-$gitrev, copying manually"
         version_name=${LINUX_TAG:-default}-$gitrev
         [ -f arch/$arch/config-*-$gitrev ] && { version_name=arch/$arch/Sytem.map-*-$gitrev; version_name=${version_name##*/config-}; }
-        kernel=/boot/vmlinux-${version_name}.gz
+        kernel=$BOOT_DIR/vmlinux-${version_name}.gz
         [ -f arch/$arch/Image.gz ] && sudo cp arch/$arch/Image.gz $kernel || exit 1
-        [ -f /boot/System.map-$version_name ] || sudo cp -v System.map /boot/System.map-$version_name
-        ls -l /boot/*-${version_name}*
+        [ -f $BOOT_DIR/System.map-$version_name ] || sudo cp -v System.map $BOOT_DIR/System.map-$version_name
+        ls -l $BOOT_DIR/*-${version_name}*
 
         sudo dracut --regenerate-all -f || exit 1
         echo >&2 "Check that the entry in /boot/loader/entries/ matches the initramfs file name!"
@@ -161,12 +168,12 @@ $install_kernel && {
     # unbootable and the host stops at the grub prompt.
     kver=${kernel##*/vmlinuz-}
     kver=${kver##*/vmlinux-}
-    if type -t dracut >/dev/null && [ -d "/lib/modules/$kver" ] && [ ! -s "/boot/initramfs-${kver}.img" ]; then
+    if type -t dracut >/dev/null && [ -d "/lib/modules/$kver" ] && [ ! -s "$BOOT_DIR/initramfs-${kver}.img" ]; then
         echo "No initramfs for $kver; generating one"
-        sudo dracut --force --kver "$kver" "/boot/initramfs-${kver}.img" || exit 1
+        sudo dracut --force --kver "$kver" "$BOOT_DIR/initramfs-${kver}.img" || exit 1
     fi
     if [ -n "$(sudo bash -c 'type -t grub2-mkconfig')" ]; then
-        sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+        sudo grub2-mkconfig -o "$GRUB2_CFG"
         [ -z "$(sudo bash -c 'type -t grubby')" ] && {
             grbarg='--grub2'
             . /etc/os-release
@@ -191,15 +198,15 @@ $install_kernel && {
             sudo grubby $grbarg --set-default="$kernel"
         else
             sudo grubby $grbarg --add-kernel=$kernel --make-default --copy-default --title=$(basename $kernel) \
-                ${kver:+--initrd="/boot/initramfs-${kver}.img"}
+                ${kver:+--initrd="$BOOT_DIR/initramfs-${kver}.img"}
         fi
         #sudo grubby --set-default "$kernel"
     else
         KERNELVER=${kernel#*-}
-        MID=$(sudo awk '/Advanced options for Ubuntu/{print $(NF-1)}' /boot/grub/grub.cfg | cut -d\' -f2)
-        KID=$(sudo awk "/with Linux $KERNELVER/"'{print $(NF-1)}' /boot/grub/grub.cfg | grep -v recovery | cut -d\' -f2 | head -n1)
-        sudo sed -i '/^GRUB_DEFAULT=/s/=.*/="'"${MID}>${KID}"'"/' /etc/default/grub
-        grep ^GRUB_DEFAULT /etc/default/grub
+        MID=$(sudo awk '/Advanced options for Ubuntu/{print $(NF-1)}' "$GRUB_CFG" | cut -d\' -f2)
+        KID=$(sudo awk "/with Linux $KERNELVER/"'{print $(NF-1)}' "$GRUB_CFG" | grep -v recovery | cut -d\' -f2 | head -n1)
+        sudo sed -i '/^GRUB_DEFAULT=/s/=.*/="'"${MID}>${KID}"'"/' "$GRUB_DEFAULT_FILE"
+        grep ^GRUB_DEFAULT "$GRUB_DEFAULT_FILE"
         sudo update-grub
     fi
     echo "Kernel: $(ls -l $kernel)"
