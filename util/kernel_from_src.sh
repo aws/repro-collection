@@ -2,6 +2,7 @@
 
 [ "$1" = "--help" ] && {
     echo "Usage: $0 [--install] [--version=<kernel_tag>] [--path=<linux_dir>] [--repo=<git_repo>] [--reuse-build] [--no-perf] [--upgrade] [--offline-mode] [--reboot|--no-reboot] [<config_option>=<value> [...]]"
+    echo "       $0 --connect=<user@host> [<any option above> ...]"
     echo "       $0 --setup-only"
     echo "       $0 --help"
     echo "Build the Linux kernel (optionally download from repo and activate it after building)."
@@ -9,8 +10,12 @@
     echo "Only build dependencies are installed; --upgrade also upgrades the distro, which"
     echo "changes glibc/systemd and makes two builds incomparable -- not for an experiment."
     echo "In setup only mode, packages are installed and the repo is cloned / updated, but nothing is built."
+    echo "With --connect, the build runs on a remote host over SSH (the script and any"
+    echo "--patch-dir are uploaded, then this script is re-invoked there with the remaining"
+    echo "options); set SSH_OPTIONS for custom ssh/scp flags (e.g. \"-i key.pem\")."
     echo "With --install, --reboot reboots into the new kernel afterwards (--no-reboot never does)."
     echo "E.g.: $0 --install --version=v6.12 CONFIG_SCHED_DEBUG=y CONFIG_PROC_SYSCTL=y CONFIG_SYSCTL=y 2>&1 | tee build.log"
+    echo "E.g.: SSH_OPTIONS=\"-i key.pem\" $0 --connect=ec2-user@1.2.3.4 --install --reboot --version=v6.12"
     exit 0
 }
 : ${setup_only:=false}     # default: don't quit after installing dependencies and cloning/updating repo
@@ -21,6 +26,7 @@
 : ${build_perf:=true}      # default: build and install perf from the kernel tree (--no-perf to skip)
 : ${upgrade_packages:=false} # default: install build deps only; --upgrade also upgrades the whole distro
 : ${reboot_mode:=never}    # never | reboot: whether to reboot into the new kernel after --install
+: ${SSH_OPTIONS:=}         # extra ssh/scp flags for --connect (e.g. "-i key.pem")
 : ${BOOT_DIR:=/boot}       # where kernel configs/images live and get installed (override for chroot/alt-boot builds and tests)
 # Bootloader paths, overridable like BOOT_DIR (also keeps a test run from
 # touching the real /etc/default/grub or grub.cfg).
@@ -28,6 +34,8 @@
 : ${GRUB2_CFG:=${BOOT_DIR}/grub2/grub.cfg}  # RPM/SUSE generated menu
 : ${GRUB_CFG:=${BOOT_DIR}/grub/grub.cfg}    # Debian/Ubuntu generated menu
 : ${PERF_DIR:=/usr/local/bin} # where the built perf binary is installed
+REMOTE_HOST=""             # set via --connect to build on a remote host over SSH
+ORIG_ARGS=("$@")           # kept verbatim so --connect can replay them on the remote
 
 function err_exit() {
     echo "FATAL: $@" >&2
@@ -53,6 +61,8 @@ while [ $# -gt 0 ]; do
         --reuse-build) reuse_build=true;;
         --no-perf) build_perf=false;;
         --upgrade) upgrade_packages=true;;
+        --connect=*) REMOTE_HOST="${1#*=}";;
+        -c) shift; REMOTE_HOST="$1";;
         --reboot) reboot_mode=reboot;;
         --no-reboot) reboot_mode=never;;
         --) shift; break;;
@@ -61,6 +71,64 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
+
+# Upload this script (and any --patch-dir) to the target and re-run it there with
+# the same options minus --connect, streaming its output back here.
+if [ -n "$REMOTE_HOST" ]; then
+    SSH_CMD="ssh $SSH_OPTIONS"
+    SCP_CMD="scp $SSH_OPTIONS"
+
+    REMOTE_DIR="$($SSH_CMD "$REMOTE_HOST" 'mktemp -d /tmp/kernel_from_src.XXXXXXXX')" \
+        || err_exit "Cannot create a staging directory on $REMOTE_HOST"
+    [ -n "$REMOTE_DIR" ] || err_exit "Empty staging directory returned by $REMOTE_HOST"
+    REMOTE_SCRIPT="$REMOTE_DIR/kernel_from_src.sh"
+    echo "Remote build on $REMOTE_HOST (staging in $REMOTE_DIR)"
+    $SCP_CMD "$0" "$REMOTE_HOST:$REMOTE_SCRIPT" || err_exit "Failed to upload script to $REMOTE_HOST"
+
+    # Rebuild the remote argument list, dropping --connect/-c and rewriting a
+    # local --patch-dir to the uploaded copy.
+    remote_args=(); skip_next=false
+    for a in "${ORIG_ARGS[@]}"; do
+        $skip_next && { skip_next=false; continue; }
+        case "$a" in
+            --connect=*) ;;                       # drop
+            -c) skip_next=true ;;                 # drop it and its value
+            --patch-dir=*)
+                _pd="${a#*=}"
+                $SCP_CMD -r "$_pd" "$REMOTE_HOST:$REMOTE_DIR/patches" \
+                    || err_exit "Failed to upload patch dir $_pd"
+                remote_args+=("--patch-dir=$REMOTE_DIR/patches") ;;
+            *) remote_args+=("$a") ;;
+        esac
+    done
+
+    printf -v remote_argv ' %q' "${remote_args[@]}"
+    $SSH_CMD "$REMOTE_HOST" \
+        "set -o pipefail; SSH_OPTIONS=$(printf %q "$SSH_OPTIONS") bash $(printf %q "$REMOTE_SCRIPT")${remote_argv} 2>&1 | tee $(printf %q "$REMOTE_DIR/build.log")" \
+        || err_exit "Remote build failed (see $REMOTE_HOST:$REMOTE_DIR/build.log)"
+    echo "Remote build finished; log at $REMOTE_HOST:$REMOTE_DIR/build.log"
+
+    if $install_kernel && [ "$reboot_mode" = reboot ]; then
+        echo "Waiting for $REMOTE_HOST to reboot ..."
+        sleep 10
+
+        # Wait for the host to go down (bounded, in case it never drops SSH).
+        _n=0
+        while $SSH_CMD -o ConnectTimeout=2 "$REMOTE_HOST" true >/dev/null 2>&1; do
+            sleep 2; _n=$((_n+1)); [ $_n -ge 30 ] && break
+        done
+
+        # Wait for it to come back, capped at ~6 min
+        _n=0
+        until $SSH_CMD -o ConnectTimeout=5 "$REMOTE_HOST" true >/dev/null 2>&1; do
+            sleep 5; printf '.' >&2; _n=$((_n+1))
+            [ $_n -ge 72 ] && { echo; err_exit "Remote host $REMOTE_HOST did not come back after reboot (~6 min); the new kernel may have failed to boot. Check the EC2 console output."; }
+        done
+        echo
+        echo "Remote kernel now: $($SSH_CMD "$REMOTE_HOST" 'uname -r' 2>/dev/null || echo unknown)"
+    fi
+    exit 0
+fi
 
 $offline_mode || {
     if type -t apt-get >/dev/null; then
