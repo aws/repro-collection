@@ -103,7 +103,20 @@ $setup_only && {
     done
 }
 
-cp -v "$BOOT_DIR/config-$(uname -r)" .config
+# Seed .config from the running kernel, with fallbacks for minimal/chroot images.
+if [ -f "$BOOT_DIR/config-$(uname -r)" ]; then
+    cp -v "$BOOT_DIR/config-$(uname -r)" .config
+elif [ -f /proc/config.gz ]; then
+    echo "$BOOT_DIR/config-$(uname -r) not found; extracting /proc/config.gz"
+    zcat /proc/config.gz > .config
+elif [ -f .config ]; then
+    echo "$BOOT_DIR/config-$(uname -r) not found; reusing existing .config in the tree"
+else
+    fallback_cfg="$(ls -t "$BOOT_DIR"/config-* 2>/dev/null | head -n1)"
+    [ -n "$fallback_cfg" ] || err_exit "Cannot find any kernel config (tried $BOOT_DIR/config-$(uname -r), /proc/config.gz, $BOOT_DIR/config-*)"
+    echo "$BOOT_DIR/config-$(uname -r) not found; falling back to $fallback_cfg"
+    cp -v "$fallback_cfg" .config
+fi
 type -t ec2metadata >/dev/null || type -t ec2-metadata >/dev/null && {
     echo "CONFIG_NET_VENDOR_AMAZON=y" >> .config
     echo "CONFIG_ENA_ETHERNET=m" >> .config
