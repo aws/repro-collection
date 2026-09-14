@@ -1,7 +1,7 @@
 #!/bin/bash
 
 [ "$1" = "--help" ] && {
-    echo "Usage: $0 [--install] [--version=<kernel_tag>] [--path=<linux_dir>] [--repo=<git_repo>] [--reuse-build] [--no-perf] [--upgrade] [--offline-mode] [<config_option>=<value> [...]]"
+    echo "Usage: $0 [--install] [--version=<kernel_tag>] [--path=<linux_dir>] [--repo=<git_repo>] [--reuse-build] [--no-perf] [--upgrade] [--offline-mode] [--reboot|--no-reboot] [<config_option>=<value> [...]]"
     echo "       $0 --setup-only"
     echo "       $0 --help"
     echo "Build the Linux kernel (optionally download from repo and activate it after building)."
@@ -9,6 +9,7 @@
     echo "Only build dependencies are installed; --upgrade also upgrades the distro, which"
     echo "changes glibc/systemd and makes two builds incomparable -- not for an experiment."
     echo "In setup only mode, packages are installed and the repo is cloned / updated, but nothing is built."
+    echo "With --install, --reboot reboots into the new kernel afterwards (--no-reboot never does)."
     echo "E.g.: $0 --install --version=v6.12 CONFIG_SCHED_DEBUG=y CONFIG_PROC_SYSCTL=y CONFIG_SYSCTL=y 2>&1 | tee build.log"
     exit 0
 }
@@ -19,6 +20,7 @@
 : ${reuse_build:=false}    # default: if the given tag is already built, assume the config hasn't changed and reuse the kernel
 : ${build_perf:=true}      # default: build and install perf from the kernel tree (--no-perf to skip)
 : ${upgrade_packages:=false} # default: install build deps only; --upgrade also upgrades the whole distro
+: ${reboot_mode:=never}    # never | reboot: whether to reboot into the new kernel after --install
 : ${BOOT_DIR:=/boot}       # where kernel configs/images live and get installed (override for chroot/alt-boot builds and tests)
 # Bootloader paths, overridable like BOOT_DIR (also keeps a test run from
 # touching the real /etc/default/grub or grub.cfg).
@@ -51,6 +53,8 @@ while [ $# -gt 0 ]; do
         --reuse-build) reuse_build=true;;
         --no-perf) build_perf=false;;
         --upgrade) upgrade_packages=true;;
+        --reboot) reboot_mode=reboot;;
+        --no-reboot) reboot_mode=never;;
         --) shift; break;;
         --*) err_exit "Unknown argument: $1";;
         *) break;;
@@ -340,4 +344,11 @@ if $install_kernel; then
         sudo update-grub
     fi
     echo "Kernel: $(ls -l $kernel)"
+
+    if [ "$reboot_mode" = reboot ]; then
+        echo "Rebooting into the new kernel ..."
+        sudo reboot
+    else
+        echo "Reboot to activate the new kernel: sudo reboot"
+    fi
 fi
