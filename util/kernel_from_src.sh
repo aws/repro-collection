@@ -197,6 +197,9 @@ function find_kernel() {
 }
 
 gitrev=$(git rev-parse --short HEAD)
+# An empty rev would build with LOCALVERSION=- and make the image assertion below
+# match anything, including the distro kernel.
+[ -n "$gitrev" ] || err_exit "Cannot determine the built revision ('git rev-parse --short HEAD' returned nothing); is $PWD a git repo with at least one commit?"
 if $reuse_build && [ -n "$(find_kernel "$gitrev")" ]; then
     echo "Reusing previously built kernel $gitrev"
 else
@@ -225,6 +228,8 @@ if $install_kernel; then
         perf --version
     }
     ls -l $BOOT_DIR/*-$gitrev*
+    # realpath covers a `make install` that only leaves a $BOOT_DIR/vmlinuz symlink;
+    # where the distro ships its own it resolves to that, which the check below rejects.
     kernel="$(find_kernel $gitrev $(realpath $BOOT_DIR/vmlinuz))"
     [ -z "$kernel" ] && {
         echo >&2 "Can't find $BOOT_DIR/vmlinu*-$gitrev, copying manually"
@@ -238,6 +243,14 @@ if $install_kernel; then
         sudo dracut --regenerate-all -f || exit 1
         echo >&2 "Check that the entry in /boot/loader/entries/ matches the initramfs file name!"
     }
+
+    # Anchored on the '-' LOCALVERSION prepends and on the end of the rev, so a
+    # longer sibling rev is rejected. The second pattern admits the '+'/'_'
+    # setlocalversion appends to a patched tree, and a '.gz' image suffix.
+    case "$kernel" in
+        *-"$gitrev"|*-"$gitrev"[!0-9a-f]*) ;;
+        *) err_exit "Selected kernel '$kernel' does not carry the built revision '$gitrev'; refusing to install it as the default" ;;
+    esac
     sudo chmod +x $kernel
     ls -l $kernel
 
@@ -255,6 +268,13 @@ if $install_kernel; then
         sudo dracut --force --kver "$KVER" "$BOOT_DIR/initramfs-${KVER}.img" || exit 1
     fi
     if [ -n "$(sudo bash -c 'type -t grub2-mkconfig')" ]; then
+        if [ -f "$GRUB_DEFAULT_FILE" ]; then
+            if grep -q '^GRUB_DEFAULT=' "$GRUB_DEFAULT_FILE"; then
+                sudo sed -i 's/^GRUB_DEFAULT=.*/GRUB_DEFAULT=saved/' "$GRUB_DEFAULT_FILE"
+            else
+                echo 'GRUB_DEFAULT=saved' | sudo tee -a "$GRUB_DEFAULT_FILE" >/dev/null
+            fi
+        fi
         sudo grub2-mkconfig -o "$GRUB2_CFG"
         [ -z "$(sudo bash -c 'type -t grubby')" ] && {
             grbarg='--grub2'
@@ -275,14 +295,19 @@ if $install_kernel; then
                 rm -rf "$grbdir"
             )
         }
-        # --add-kernel appends a duplicate entry on every re-run.
+
+        # --add-kernel appends a duplicate on every re-run.
         if sudo grubby --info="$kernel" >/dev/null 2>&1; then
             sudo grubby $grbarg --set-default="$kernel"
         else
             sudo grubby $grbarg --add-kernel=$kernel --make-default --copy-default --title=$(basename $kernel) \
                 ${KVER:+--initrd="$BOOT_DIR/initramfs-${KVER}.img"}
+            sudo grubby $grbarg --set-default="$kernel"
         fi
-        #sudo grubby --set-default "$kernel"
+
+        _def="$(sudo grubby $grbarg --default-kernel 2>/dev/null || true)"
+        echo "grubby default kernel: ${_def}"
+        [ "${_def}" = "$kernel" ] || err_exit "grubby default is '${_def}', expected '${kernel}'; refusing to reboot into the wrong kernel"
     else
         KERNELVER="$KVER"
         MID=$(sudo awk '/Advanced options for Ubuntu/{print $(NF-1)}' "$GRUB_CFG" | cut -d\' -f2)
