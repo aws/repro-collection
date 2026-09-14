@@ -65,6 +65,9 @@ function postgresql:help() {
     echo "Recommended: 2+ fast NVMe disks on the SUT for RAID0 on ${PG_DB_MOUNTPOINT}."
     echo "If no RAID is found, available disks are auto-detected and assembled."
     echo
+    echo "Step 'load' (DROP/CREATE DATABASE + pgbench -i) is not in the default step"
+    echo "list; drive the steps explicitly to restart PostgreSQL before the benchmark:"
+    echo "  repro:run postgresql LDG load run results"
     echo "PG_LDG_VERSION (${PG_LDG_VERSION:-<distro default>}): pgbench package major on the LDG;"
     echo "  set-but-empty uses the distro default (Ubuntu carries only one major)."
 }
@@ -312,39 +315,51 @@ function postgresql:wait_ready() {
     return 1
 }
 
+# Separate from run, so a scenario can restart PostgreSQL in between.
+function postgresql:load:sut() {
+    repro:info "SUT waiting for LDG to finish the DB reload"
+    repro:wait_for_ldg "DONE" "OK"
+}
+
+function postgresql:load:loadgen() {
+    repro:info "LDG load: reload ${PG_DBNAME}, then pgbench -i"
+    [ -z "$PGBENCH_THREADS" ] && PGBENCH_THREADS=$(nproc)
+    local connstr="host=${REPROCFG_SUT} port=${PG_PORT} dbname=${PG_DBNAME} user=${PG_USERNAME}"
+    local admstr="host=${REPROCFG_SUT} port=${PG_PORT} dbname=postgres user=${PG_USERNAME}"
+
+    export PGPASSWORD="${PG_PASSWORD}"
+    postgresql:wait_ready remote || repro:fatal "PostgreSQL on SUT not reachable before load"
+
+    # Fresh DB each iteration.
+    local drop_force=""
+    [ "${PG_VERSION%%.*}" -ge 13 ] 2>/dev/null && drop_force=" WITH (FORCE)"
+    repro:cmd "psql \"${admstr}\" -c 'DROP DATABASE IF EXISTS ${PG_DBNAME}${drop_force}'" \
+        || repro:fatal "Could not drop ${PG_DBNAME}; the per-iteration fresh database did not happen"
+    repro:cmd "psql \"${admstr}\" -c 'CREATE DATABASE ${PG_DBNAME} OWNER ${PG_USERNAME}'" \
+        || repro:fatal "Could not create ${PG_DBNAME}; the per-iteration fresh database did not happen"
+    repro:info "pgbench init: scale=${PGBENCH_SCALE}"
+
+    repro:cmd "ulimit -n ${PGBENCH_NOFILE}; pgbench -i -s ${PGBENCH_SCALE} ${PGBENCH_INIT_EXTRA_ARGS} \"${connstr}\"" \
+        || { repro:error "pgbench init failed"; return 1; }
+    repro:wait_for_sut "DONE" || repro:warn "SUT handshake failed after load"
+}
+
 function postgresql:run:sut() {
     repro:info "SUT ready, waiting for LDG to finish"
     repro:wait_for_ldg "DONE" "OK"
 }
 
 function postgresql:run:loadgen() {
-    repro:info "LDG run: pgbench against ${REPROCFG_SUT}:${PG_PORT}"
-    if [ -z "$PGBENCH_THREADS" ]; then
-        PGBENCH_THREADS=$(nproc)
-    fi
-
+    repro:info "LDG run: pgbench benchmark against ${REPROCFG_SUT}:${PG_PORT}"
+    [ -z "$PGBENCH_THREADS" ] && PGBENCH_THREADS=$(nproc)
     local connstr="host=${REPROCFG_SUT} port=${PG_PORT} dbname=${PG_DBNAME} user=${PG_USERNAME}"
     export PGPASSWORD="${PG_PASSWORD}"
-
     postgresql:wait_ready remote || repro:fatal "PostgreSQL on SUT not reachable before the benchmark"
-
-    # initialize pgbench tables
-    repro:info "pgbench init: scale=${PGBENCH_SCALE}"
-    repro:cmd "ulimit -n ${PGBENCH_NOFILE}; pgbench -i -s ${PGBENCH_SCALE} ${PGBENCH_INIT_EXTRA_ARGS} \"${connstr}\""
-    local init_rc=$?
-    [ $init_rc -ne 0 ] && {
-        repro:error "pgbench init failed (rc=$init_rc), aborting run"
-        return $init_rc
-    }
-
-    # run benchmark
     local report_flag=""
     [ "${PGBENCH_REPORT_PER_COMMAND}" = "true" ] && report_flag="-r"
 
     repro:info "pgbench run: clients=${PGBENCH_CLIENTS} threads=${PGBENCH_THREADS} duration=${PGBENCH_DURATION}s builtin=${PGBENCH_BUILTIN}"
     repro:cmd "ulimit -n ${PGBENCH_NOFILE}; pgbench -c ${PGBENCH_CLIENTS} -j ${PGBENCH_THREADS} -T ${PGBENCH_DURATION} -b ${PGBENCH_BUILTIN} -M ${PGBENCH_PROTOCOL} ${report_flag} --progress=10 ${PGBENCH_RUN_EXTRA_ARGS} \"${connstr}\" 2>&1 | tee ${PGBENCH_LOG}"
-
-    # signal SUT that we're done
     repro:wait_for_sut "DONE" || repro:warn "SUT handshake failed"
 }
 
