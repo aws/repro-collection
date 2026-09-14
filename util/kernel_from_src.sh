@@ -96,11 +96,47 @@ $setup_only && {
 }
 [ -n "$LINUX_PATCHDIR" ] && {
     echo "Linux patch dir: $LINUX_PATCHDIR"
-    for patch in "$LINUX_PATCHDIR/$LINUX_TAG"/*.patch; do
+    _pdir="$LINUX_PATCHDIR/$LINUX_TAG"
+    # Take .diff too: git am handles git-format patches and the fallback below
+    # handles plain diffs. One combined sorted list, so a caller's NN- prefixed
+    # apply order survives mixing the two extensions.
+    shopt -s nullglob
+    _cand=("$_pdir"/*.patch "$_pdir"/*.diff)
+    shopt -u nullglob
+    _patches=()
+    [ ${#_cand[@]} -gt 0 ] && mapfile -t _patches < <(printf '%s\n' "${_cand[@]}" | LC_ALL=C sort)
+    [ ${#_patches[@]} -gt 0 ] || echo "No .patch or .diff files in $_pdir"
+    for patch in ${_patches[@]+"${_patches[@]}"}; do
         echo
         echo "Applying patch: $patch"
-        git am -3 --ignore-space-change --ignore-whitespace --committer-date-is-author-date "$patch" || git am --abort
+
+        if git am -3 --ignore-space-change --ignore-whitespace --committer-date-is-author-date "$patch"; then
+            echo "Applied via git am: $patch"
+        else
+            git am --abort 2>/dev/null || true
+            echo "git am failed (likely a plain diff); trying git apply ..."
+            git apply --3way --whitespace=nowarn "$patch" \
+                || err_exit "Patch does not apply (tried git am and git apply): $patch"
+
+            git -c user.name=kernel_from_src -c user.email=kernel_from_src@localhost \
+                commit --quiet --all --allow-empty -m "repro patch: $(basename "$patch")" \
+                || err_exit "Failed to commit $patch (needed so uname -r distinguishes the patched build)"
+            echo "Applied via git apply and committed: $patch"
+        fi
+        echo "  patch sha256: $(sha256sum "$patch" 2>/dev/null | cut -d' ' -f1)"
     done
+
+    # A file staged here and not applied would leave the series silently
+    # incomplete on a kernel whose name still says "patched".
+    _skipped=()
+    shopt -s nullglob
+    for _f in "$_pdir"/*; do
+        [ -f "$_f" ] || continue
+        case "$_f" in *.patch|*.diff) ;; *) _skipped+=("$_f");; esac
+    done
+    shopt -u nullglob
+    [ ${#_skipped[@]} -eq 0 ] \
+        || err_exit "Not applied, unrecognised extension (expected .patch or .diff): ${_skipped[*]}"
 }
 
 # Seed .config from the running kernel, with fallbacks for minimal/chroot images.
