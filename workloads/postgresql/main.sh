@@ -323,7 +323,8 @@ function postgresql:run:loadgen() {
         PGBENCH_THREADS=$(nproc)
     fi
 
-    local connstr="host=${REPROCFG_SUT} port=${PG_PORT} dbname=${PG_DBNAME} user=${PG_USERNAME} password=${PG_PASSWORD}"
+    local connstr="host=${REPROCFG_SUT} port=${PG_PORT} dbname=${PG_DBNAME} user=${PG_USERNAME}"
+    export PGPASSWORD="${PG_PASSWORD}"
 
     postgresql:wait_ready remote || repro:fatal "PostgreSQL on SUT not reachable before the benchmark"
 
