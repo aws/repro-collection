@@ -32,6 +32,13 @@ function err_exit() {
     exit 1
 }
 
+# True where $1 can be run, directly or under sudo. Both probes are needed: sbin
+# may be off a non-root PATH, and restricted sudo rejects the sudo form outright.
+function have_tool() {
+    type -t "$1" >/dev/null && return 0
+    [ -n "$(sudo bash -c "command -v $(printf %q "$1")" 2>/dev/null)" ]
+}
+
 while [ $# -gt 0 ]; do
     case "$1" in
         --setup-only) setup_only=true; offline_mode=false;;
@@ -240,7 +247,15 @@ if $install_kernel; then
         [ -f $BOOT_DIR/System.map-$version_name ] || sudo cp -v System.map $BOOT_DIR/System.map-$version_name
         ls -l $BOOT_DIR/*-${version_name}*
 
-        sudo dracut --regenerate-all -f || exit 1
+        # The hand-copied image has no initramfs, and the boot entry is unbootable
+        # without one. dracut is RPM/SUSE; update-initramfs is the Debian equivalent.
+        if have_tool dracut; then
+            sudo dracut --regenerate-all -f || err_exit "dracut --regenerate-all failed"
+        elif have_tool update-initramfs; then
+            sudo update-initramfs -u -k all || err_exit "update-initramfs failed"
+        else
+            err_exit "Copied $kernel by hand, but neither dracut nor update-initramfs is available to build its initramfs; install one and re-run."
+        fi
         echo >&2 "Check that the entry in /boot/loader/entries/ matches the initramfs file name!"
     }
 
@@ -260,14 +275,21 @@ if $install_kernel; then
 
     # Machine-readable, so a caller can assert `uname -r` equals what was built.
     echo "KERNEL_FROM_SRC_RELEASE=$KVER"
-
-    # make install may not build an initramfs; without one the boot entry below is
-    # unbootable and the host stops at the grub prompt.
-    if type -t dracut >/dev/null && [ -d "/lib/modules/$KVER" ] && [ ! -s "$BOOT_DIR/initramfs-${KVER}.img" ]; then
-        echo "No initramfs for $KVER; generating one"
-        sudo dracut --force --kver "$KVER" "$BOOT_DIR/initramfs-${KVER}.img" || exit 1
-    fi
     if [ -n "$(sudo bash -c 'type -t grub2-mkconfig')" ]; then
+        INITRD="$BOOT_DIR/initramfs-${KVER}.img"
+        # Only build one when it is missing or truncated; a re-run for the same
+        # revision would otherwise spend minutes rebuilding a valid initramfs.
+        if [ -s "$INITRD" ]; then
+            echo "Reusing existing initramfs ${INITRD}"
+        elif have_tool dracut; then
+            echo "Generating initramfs ${INITRD}"
+            sudo dracut --force "$INITRD" "$KVER" || err_exit "Failed to build initramfs for ${KVER}"
+        else
+            # --add-kernel below passes --initrd unconditionally, so continuing would
+            # strand the host at the grub prompt on the next reboot.
+            err_exit "No initramfs at ${INITRD} and dracut is not installed; refusing to write a boot entry that points at a missing initrd. Install dracut (or build the initramfs by hand) and re-run."
+        fi
+
         if [ -f "$GRUB_DEFAULT_FILE" ]; then
             if grep -q '^GRUB_DEFAULT=' "$GRUB_DEFAULT_FILE"; then
                 sudo sed -i 's/^GRUB_DEFAULT=.*/GRUB_DEFAULT=saved/' "$GRUB_DEFAULT_FILE"
@@ -300,8 +322,7 @@ if $install_kernel; then
         if sudo grubby --info="$kernel" >/dev/null 2>&1; then
             sudo grubby $grbarg --set-default="$kernel"
         else
-            sudo grubby $grbarg --add-kernel=$kernel --make-default --copy-default --title=$(basename $kernel) \
-                ${KVER:+--initrd="$BOOT_DIR/initramfs-${KVER}.img"}
+            sudo grubby $grbarg --add-kernel=$kernel --initrd="$INITRD" --copy-default --make-default --title=$(basename $kernel)
             sudo grubby $grbarg --set-default="$kernel"
         fi
 
