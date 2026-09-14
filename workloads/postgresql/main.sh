@@ -286,6 +286,32 @@ function postgresql:configure:loadgen() {
 # Run
 # ============================================================
 
+function postgresql:wait_ready() {
+    local where="${1:?postgresql:wait_ready: local|remote required}"
+    local need="${2:-3}" timeout="${3:-300}" ok=0 left desc
+    case "${where}" in
+        local)  desc="PostgreSQL on this host (port ${PG_PORT})" ;;
+        remote) desc="PostgreSQL on ${REPROCFG_SUT}:${PG_PORT}" ;;
+        *) repro:fatal "postgresql:wait_ready: expected 'local' or 'remote', got '${where}'" ;;
+    esac
+    repro:info "Waiting for ${desc} (${need} consecutive probes, ${timeout}s budget)"
+    for (( left = timeout; left > 0; left-- )); do
+        if { [ "${where}" = local ] \
+                && sudo -u postgres psql -p "${PG_PORT}" -Atqc 'SELECT 1' 2>/dev/null | grep -q '^1$'; } \
+            || { [ "${where}" = remote ] \
+                && pg_isready -h "${REPROCFG_SUT}" -p "${PG_PORT}" -d template1 -q 2>/dev/null; }
+        then
+            ok=$((ok + 1))
+            [ "${ok}" -ge "${need}" ] && { repro:info "${desc} is ready"; return 0; }
+        else
+            ok=0   # reset on any failure (shutting down / starting up / refused)
+        fi
+        sleep 1
+    done
+    repro:error "${desc} did not answer ${need} consecutive probes within ${timeout}s"
+    return 1
+}
+
 function postgresql:run:sut() {
     repro:info "SUT ready, waiting for LDG to finish"
     repro:wait_for_ldg "DONE" "OK"
@@ -299,15 +325,7 @@ function postgresql:run:loadgen() {
 
     local connstr="host=${REPROCFG_SUT} port=${PG_PORT} dbname=${PG_DBNAME} user=${PG_USERNAME} password=${PG_PASSWORD}"
 
-    # wait for PG to be reachable on SUT
-    repro:info "Waiting for PostgreSQL on ${REPROCFG_SUT}:${PG_PORT}"
-    local retries=120
-    while ! pg_isready -h ${REPROCFG_SUT} -p ${PG_PORT} -q 2>/dev/null; do
-        retries=$((retries - 1))
-        [ $retries -le 0 ] && repro:fatal "PostgreSQL on SUT not reachable after 120s"
-        sleep 1
-    done
-    repro:info "PostgreSQL on SUT is ready"
+    postgresql:wait_ready remote || repro:fatal "PostgreSQL on SUT not reachable before the benchmark"
 
     # initialize pgbench tables
     repro:info "pgbench init: scale=${PGBENCH_SCALE}"
