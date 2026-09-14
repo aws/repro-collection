@@ -1,11 +1,13 @@
 #!/bin/bash
 
 [ "$1" = "--help" ] && {
-    echo "Usage: $0 [--install] [--version=<kernel_tag>] [--path=<linux_dir>] [--repo=<git_repo>] [--reuse-build] [--offline-mode] [<config_option>=<value> [...]]"
+    echo "Usage: $0 [--install] [--version=<kernel_tag>] [--path=<linux_dir>] [--repo=<git_repo>] [--reuse-build] [--upgrade] [--offline-mode] [<config_option>=<value> [...]]"
     echo "       $0 --setup-only"
     echo "       $0 --help"
     echo "Build the Linux kernel (optionally download from repo and activate it after building)."
     echo "In offline mode, no packages are installed, and the git repo is not refreshed before building."
+    echo "Only build dependencies are installed; --upgrade also upgrades the distro, which"
+    echo "changes glibc/systemd and makes two builds incomparable -- not for an experiment."
     echo "In setup only mode, packages are installed and the repo is cloned / updated, but nothing is built."
     echo "E.g.: $0 --install --version=v6.12 CONFIG_SCHED_DEBUG=y CONFIG_PROC_SYSCTL=y CONFIG_SYSCTL=y 2>&1 | tee build.log"
     exit 0
@@ -15,6 +17,7 @@
 : ${install_kernel:=false} # default: just build the kernel, don't install it
 : ${use_suse_repo:=false}  # default: use mainline Linux repo, not SUSE (only for SUSE hosts)
 : ${reuse_build:=false}    # default: if the given tag is already built, assume the config hasn't changed and reuse the kernel
+: ${upgrade_packages:=false} # default: install build deps only; --upgrade also upgrades the whole distro
 : ${BOOT_DIR:=/boot}       # where kernel configs/images live and get installed (override for chroot/alt-boot builds and tests)
 # Bootloader paths, overridable like BOOT_DIR (also keeps a test run from
 # touching the real /etc/default/grub or grub.cfg).
@@ -38,6 +41,7 @@ while [ $# -gt 0 ]; do
         --version=*) LINUX_TAG="${1#*=}";;
         --patch-dir=*) LINUX_PATCHDIR="${1#*=}";;
         --reuse-build) reuse_build=true;;
+        --upgrade) upgrade_packages=true;;
         --) shift; break;;
         --*) err_exit "Unknown argument: $1";;
         *) break;;
@@ -48,18 +52,17 @@ done
 $offline_mode || {
     if type -t apt-get >/dev/null; then
         sudo apt-get update -y
-        sudo apt-get upgrade -y
+        $upgrade_packages && sudo apt-get upgrade -y
         sudo apt-get -y install build-essential flex bison fakeroot ncurses-dev xz-utils libssl-dev bc libelf-dev python3 python3-dev pkg-config
         sudo apt-get -y install dwarves libdwarf-dev libdw-dev binutils-dev libcap-dev libelf-dev libnuma-dev libssl-dev libunwind-dev zlib1g-dev liblzma-dev libaio-dev libtraceevent-dev debuginfod libpfm4-dev libslang2-dev systemtap-sdt-dev libperl-dev libbabeltrace-dev libiberty-dev libzstd-dev libzstd1
     elif type -t zypper >/dev/null; then
-        sudo zypper --non-interactive update
+        $upgrade_packages && sudo zypper --non-interactive update
         sudo zypper --non-interactive install -y -t pattern devel_basis  && \
         sudo zypper --non-interactive install -y -t pattern devel_kernel || \
         sudo zypper --non-interactive install -y -t pattern Basis-Devel
         #sudo zypper --non-interactive install -y git gcc flex bison ncurses-devel openssl-devel make  # TODO: fix build on older SUSE hosts
     elif type -t yum >/dev/null; then
-        sudo yum update -y
-        sudo yum upgrade -y
+        $upgrade_packages && { sudo yum update -y; sudo yum upgrade -y; }
         sudo yum -y groupinstall 'Development Tools'
         sudo yum -y install flex bison ncurses-devel elfutils-libelf-devel openssl-devel dwarves
     else
